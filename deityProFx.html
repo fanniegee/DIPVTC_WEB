@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DIPVTC - DeityPro FX</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Montserrat',Arial,sans-serif;background:#f4fff6}
+.header{background:#0a1931;color:#fff;text-align:center;padding:28px 16px;position:relative}
+.header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:6px;background:linear-gradient(90deg,#0a1931,#27ae60,#ff8c69)}
+.header img.main-logo{width:115px;height:115px;border-radius:50%;border:4px solid #27ae60;object-fit:cover;background:#fff;margin-bottom:10px;cursor:pointer;box-shadow:0 0 0 4px #0a1931, 0 0 0 8px #ff8c69}
+.header h1{margin:6px 0;background:linear-gradient(90deg,#27ae60,#ff8c69);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:900}
+.btn-home{display:inline-block;margin-top:14px;background:linear-gradient(135deg,#0a1931,#27ae60);color:#fff;padding:10px 22px;border-radius:30px;text-decoration:none;font-weight:bold;border:2px solid #ff8c69}
+.course-card{background:#eef8f0;border-left:6px solid #27ae60;border-right:6px solid #27ae60;border-radius:16px;padding:20px;margin:16px;display:flex;gap:16px;align-items:flex-start;box-shadow:0 2px 10px rgba(0,0,0,0.08)}
+.course-card img.block-logo{width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid #0a1931;flex-shrink:0;background:#fff;cursor:pointer;box-shadow:0 0 0 2px #27ae60}
+.badge{background:linear-gradient(90deg,#e8fff0,#fff2e8);padding:8px 12px;border-radius:8px;margin:6px 0;font-size:14px;line-height:1.4;border-left:3px solid #27ae60}
+.level-tag{background:linear-gradient(135deg,#0a1931,#27ae60);color:#fff;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:bold;display:inline-block;margin-bottom:8px;border:1px solid #ff8c69}
+footer{background:#0a1931;color:#fff;text-align:center;padding:16px;margin-top:20px;border-top:4px solid #27ae60}
+button,input,select,textarea{font:inherit}
+</style>
+<script>function resolveDIPVTCImage(value){var src=String(value||"").trim();if(!src)return "/assets/images/dipvtc.png";if(/(?:^|\/)zimsec-main\.png$/i.test(src))return "/assets/images/zimsec.png";if(/^(data:|blob:|https?:\/\/|\/)/i.test(src))return src;if(src.indexOf("images/")===0)return "/assets/"+src;if(src.indexOf("assets/")===0)return "/"+src;return "/assets/images/"+src.replace(/^\/+/,"");}</script>
+<link rel="stylesheet" href="/assets/site-footer.css">
+</head>
+<body>
+
+<div class="header">
+<img id="fx-main" src="/assets/images/deityprofx-main.png" alt="DeityPro FX Main Logo" class="main-logo" title="Click to change">
+<h1>DeityPro FX</h1>
+<p>Forex Trading Learning Platform | Theory + Practical | Fundamental & Technical Strategies</p>
+<a href="index.html" class="btn-home"> Back to Home</a>
+</div>
+
+<div class="course-card">
+<img id="fx-1" src="/assets/images/fx-fundamental.png" class="block-logo" title="Click to change">
+<div>
+<div class="level-tag">PATHWAY 1 - CORE</div>
+<h3>Fundamental Trading Strategies</h3>
+<div class="badge"><b>Focus:</b> Economic indicators, Interest rates, CPI, NFP, GDP, News trading</div>
+<div class="badge"><b>You Learn:</b> How to read Forex calendar, Central bank policies, Market-moving news, Risk before & after news</div>
+<div class="badge"><b>Outcome:</b> Trade with the news, not against it</div>
+</div>
+</div>
+
+<div class="course-card">
+<img id="fx-2" src="/assets/images/fx-technical.png" class="block-logo" title="Click to change">
+<div>
+<div class="level-tag">PATHWAY 2 - CHARTS</div>
+<h3>Technical Trading Strategies</h3>
+<div class="badge"><b>Focus:</b> Support & Resistance, Indicators (RSI, MACD, Moving Averages), Chart patterns</div>
+<div class="badge"><b>You Learn:</b> Top-down analysis, Entry & Exit rules, Confluence, Timeframes M15-H4-Daily</div>
+<div class="badge"><b>Tools:</b> TradingView, MT4/MT5 mastery</div>
+</div>
+</div>
+
+<div class="course-card">
+<img id="fx-3" src="/assets/images/fx-priceaction.png" class="block-logo" title="Click to change">
+<div>
+<div class="level-tag">PATHWAY 3 - ADVANCED</div>
+<h3>Price Action & SMC Mastery</h3>
+<div class="badge"><b>Focus:</b> Smart Money Concepts (SMC), Order Blocks, Liquidity, Break of Structure (BOS), Fair Value Gaps (FVG)</div>
+<div class="badge"><b>You Learn:</b> Institutional trading, Stop hunt, Liquidity grab, Market structure shift</div>
+<div class="badge"><b>Level:</b> Professional Trader Mindset</div>
+</div>
+</div>
+
+<div class="course-card">
+<img id="fx-4" src="/assets/images/fx-sentiment.png" class="block-logo" title="Click to change">
+<div>
+<div class="level-tag">PATHWAY 4 - PSYCHOLOGY</div>
+<h3>Sentiment & Market Psychology</h3>
+<div class="badge"><b>Focus:</b> Fear & Greed, COT report, Retail vs Institutional sentiment, Trading discipline</div>
+<div class="badge"><b>You Learn:</b> Emotional control, Journaling, Overtrading cure, Patience, Confidence building</div>
+<div class="badge"><b>Bonus:</b> Trader psychology blueprint</div>
+</div>
+</div>
+
+<div class="course-card">
+<img id="fx-5" src="/assets/images/fx-risk.png" class="block-logo" title="Click to change">
+<div>
+<div class="level-tag">PATHWAY 5 - FUNDING</div>
+<h3>Risk Management & Prop Firm Mastery</h3>
+<div class="badge"><b>Focus:</b> 1% rule, Risk:Reward 1:2, 1:3, Drawdown control, Lot sizing</div>
+<div class="badge"><b>You Learn:</b> How to pass FTMO, FundedNext, Funding Pips challenges | Account management | No blowing accounts</div>
+<div class="badge"><b>Outcome:</b> Get funded $5k - $200k</div>
+</div>
+</div>
+
+<div class="course-card">
+<img id="fx-6" src="/assets/images/fx-algo.png" class="block-logo" title="Click to change">
+<div>
+<div class="level-tag">PATHWAY 6 - AUTOMATION</div>
+<h3>Algorithmic & Automated Trading</h3>
+<div class="badge"><b>Focus:</b> Expert Advisors (EAs), Trading bots, Pine Script, Risk automation</div>
+<div class="badge"><b>You Learn:</b> How to build simple bots, Backtesting, Copy trading setup, MT4/MT5 automation</div>
+<div class="badge"><b>Future:</b> Trade while you sleep - passive income</div>
+</div>
+</div>
+
+<footer>&copy; 2026 DIPVTC | DeityPro FX - Trade Like Deity</footer>
+
+<input type="file" id="in-fx-main" accept="image/*" style="display:none">
+<input type="file" id="in-fx-1" accept="image/*" style="display:none">
+<input type="file" id="in-fx-2" accept="image/*" style="display:none">
+<input type="file" id="in-fx-3" accept="image/*" style="display:none">
+<input type="file" id="in-fx-4" accept="image/*" style="display:none">
+<input type="file" id="in-fx-5" accept="image/*" style="display:none">
+<input type="file" id="in-fx-6" accept="image/*" style="display:none">
+
+<script>
+function setupLogo(imgId, inputId, key){
+  const img=document.getElementById(imgId);
+  const input=document.getElementById(inputId);
+  if(input) input.remove(); // REMOVE file chooser = no edit
+  const saved=localStorage.getItem(key);
+  if(saved) img.src=resolveDIPVTCImage(saved);
+  // LOCKED - View Only
+  if(img){
+    img.style.pointerEvents='none';
+    img.style.cursor='default';
+    img.onclick = null;
+    img.removeAttribute('onclick');
+  }
+}
+setupLogo('fx-main','in-fx-main','deitypro_main');
+setupLogo('fx-1','in-fx-1','deitypro_1');
+setupLogo('fx-2','in-fx-2','deitypro_2');
+setupLogo('fx-3','in-fx-3','deitypro_3');
+setupLogo('fx-4','in-fx-4','deitypro_4');
+setupLogo('fx-5','in-fx-5','deitypro_5');
+setupLogo('fx-6','in-fx-6','deitypro_6');
+</script>
+
+<script>
+// Auto-feed to homepage + owner - KEEP AS IS
+function addCourseToSystem(school, courseName, level){
+  let v2 = JSON.parse(localStorage.getItem('dipvtc_courses_v2')||'[]');
+  v2.push({school: school, name: courseName, level: level, date: new Date().toISOString()});
+  localStorage.setItem('dipvtc_courses_v2', JSON.stringify(v2));
+  // also push to old key for compatibility
+  let old = JSON.parse(localStorage.getItem('dipvtc_courses')||'[]');
+  old.push(school+' - '+courseName);
+  localStorage.setItem('dipvtc_courses', JSON.stringify(old));
+}
+</script>
+<script src="/assets/site-footer.js" defer></script>
+<script src="/assets/public-portal-banner.js" defer></script></body>
+</html>
+
+
+
+

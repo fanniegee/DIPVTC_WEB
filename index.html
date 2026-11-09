@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head><title>DIPVTC - The Empire of Excellence</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+body{font-family:'Montserrat',Arial,sans-serif;margin:0;background:#f4f6f9;font-weight:400}
+.header{background:#0a1931;color:white;padding:18px 20px 25px;text-align:center}
+.main-logo{width:110px;height:110px;background:white;border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.main-logo img{width:100%;height:100%;object-fit:cover}
+.motto{padding:6px 12px;display:inline-block;margin-top:5px;font-size:15px;color:white;font-weight:bold}
+.header-hero{max-width:1100px;margin:18px auto 0;text-align:left}
+.header-hero h1{font-size:30px;line-height:1.2;margin:0;white-space:nowrap;font-weight:800}
+.header-hero h1 b{color:#ff8c69}
+@media(max-width:900px){.header-hero h1{white-space:normal;font-size:26px;text-align:center}}
+.hero-cta{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+.hero-cta a{padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:13px;cursor:pointer}
+.hero-cta .primary{background:#e67e22;color:#fff}
+.hero-cta .secondary{background:#fff;color:#0a1931}
+.badge{margin-top:14px;font-size:12px;background:rgba(255,255,255,0.15);display:inline-block;padding:7px 14px;border-radius:20px;color:#fff;border:1px solid rgba(255,255,255,0.2);cursor:pointer}
+a{text-decoration:none}
+a[href*="netlify.com"]{display:none !important}
+.admin-footer{background:#0a1931;color:white;padding:22px 18px 18px;margin-top:20px;font-size:13px}
+.footer-layout{max-width:1400px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,auto) minmax(0,1fr);gap:18px;align-items:center}
+.footer-card{width:min(100%,360px);min-width:0;min-height:190px;padding:18px;border-radius:14px;background:#fff;color:#0a1931;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.footer-card h2{font-size:20px;margin:0 0 14px}.footer-card p{font-size:13px;line-height:1.65;color:#58677c;margin:0}.footer-card a{display:inline-block;margin-top:14px}
+#admission{justify-self:start}#news{justify-self:end}#footerCenter{text-align:center;min-width:320px}
+.top-nav{position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;padding:10px 12px;overflow-x:auto}
+.top-nav .nav-logo{font-weight:900;color:#0a1931;font-size:18px;white-space:nowrap}
+.top-nav .nav-logo span{color:#e67e22}
+.top-nav .links{display:flex;gap:14px;align-items:center;white-space:nowrap}
+.top-nav .links a{text-decoration:none;color:#374151;font-size:12.5px;font-weight:800}
+.top-nav .links a.admin-login{background:#0a1931;color:#fff;padding:7px 14px;border-radius:20px}
+.course-card{border:1px solid #e8edf5;border-radius:10px;padding:14px;transition:background-color .2s ease,border-color .2s ease}
+.course-cambridge{background:#fff2e9;border-color:#f4d5c3}.course-zimsec{background:#eef5ff;border-color:#d1e1f7}
+.course-hexco{background:#e8dcfa;border-color:#cfb7ef}.course-short{background:#e4d1f2;border-color:#c9a9df}
+.home-course-highlights{grid-column:1/-1;margin-top:10px}.home-course-highlights h4{margin:0 0 10px;color:#0a1931;font-size:14px;text-align:center}.home-course-highlight-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.home-course-mini{display:block;min-width:0;padding:12px;border:1px solid #e4eaf2;border-left:4px solid var(--course-accent,#e67e22);border-right:4px solid var(--course-accent,#e67e22);border-radius:10px;background:var(--course-tint,#fff);color:#0a1931;text-decoration:none;transition:transform .18s ease,box-shadow .18s ease}.home-course-mini:hover{transform:translateY(-2px);box-shadow:0 5px 14px #0a193117}.home-course-mini strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:800}.home-course-mini small{display:block;margin-top:5px;color:#68768b;font-size:10px;line-height:1.5}.home-course-more{display:block;width:max-content;margin:10px auto 0;color:#0a1931;font-size:11px;font-weight:800;text-decoration:none}
+.welcome-sec{padding:30px 20px;background:#fff;text-align:center;max-width:900px;margin:0 auto}
+#welcome{position:relative;isolation:isolate;box-sizing:border-box;max-width:100%;min-height:560px;padding:76px 8vw;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;transition:background-image .5s ease}
+#welcome h2{font-size:clamp(28px,4vw,46px);max-width:1000px}#welcome #welcomeText{max-width:900px;font-size:clamp(15px,1.5vw,19px)!important}
+#welcome[data-slide-active="true"]{background-position:center;background-size:contain;background-repeat:no-repeat;color:#fff}
+#welcome[data-slide-active="true"]:before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(8,24,48,.78),rgba(8,24,48,.42));z-index:-1}
+#welcome[data-slide-active="true"] #welcomeText{color:#fff!important}
+.pathways-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:14px}
+.pathway-slide-card{position:relative;isolation:isolate;box-sizing:border-box;display:block;overflow:hidden;min-height:280px;padding:22px!important;background-position:center;background-size:contain;background-repeat:no-repeat;background-color:#eef2f6;color:#0a1931;text-decoration:none;cursor:pointer;transition:background-image .5s ease}
+.pathway-slide-card[data-slide-active="true"]{color:#fff;text-shadow:0 1px 3px #0008}
+.pathway-slide-card[data-slide-active="true"]:before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,rgba(8,24,48,.76),rgba(8,24,48,.36))}
+.pathway-slide-card[data-slide-active="true"] h4,.pathway-slide-card[data-slide-active="true"] li{color:#fff!important}
+.pathway-slide-card[data-slide-active="true"] .pathway-tag{color:#fff!important}.pathway-action{display:inline-block;margin-top:10px;padding:6px 10px;border-radius:16px;background:#fff;color:#0a1931;font-size:10px;font-weight:800;text-shadow:none}
+.pathway-slide-card>*{position:relative;z-index:1}
+@media(max-width:800px){#welcome{min-height:440px;padding:50px 20px}.footer-layout{grid-template-columns:1fr;justify-items:center}.footer-card,#admission,#news{justify-self:center;width:min(100%,520px)}#footerCenter{min-width:0;width:100%;grid-row:2}.footer-card:first-child{grid-row:1}.footer-card:last-child{grid-row:3}}
+@media(max-width:850px){.pathways-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.pathways-grid{grid-template-columns:1fr}}
+@media(max-width:800px){#courses{grid-template-columns:repeat(2,minmax(0,1fr))!important}.home-course-highlight-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){#courses{grid-template-columns:1fr!important}.home-course-highlights{grid-column:1}.home-course-highlight-grid{grid-template-columns:1fr}}
+.pathways-sec{padding:30px 20px;background:#f8fafc}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100;align-items:center;justify-content:center}
+.modal.active{display:flex}
+.modal-box{background:#fff;width:400px;max-width:92%;border-radius:14px;padding:20px}
+.modal-box input, .modal-box select{width:100%;padding:10px;border:1px solid #d1d5db;border-radius:8px;margin:6px 0;font-size:13px}
+.modal-box button{width:100%;background:#0a1931;color:#fff;padding:11px;border:none;border-radius:8px;font-weight:bold;margin-top:8px;cursor:pointer}
+</style></head>
+<body>
+<div class="top-nav">
+<div class="nav-logo">DIP<span>VTC</span></div>
+<div class="links">
+<a href="index.html">Home</a>
+<a href="programs.html">Programs</a>
+<a href="courses.html">Courses</a>
+<a href="pathway.html">Pathways</a>
+<a href="about.html">About</a>
+<a href="admission.html">Admission</a>
+<a href="news.html">News</a>
+<a href="contact.html">Contact</a>
+<a href="/login.html?next=%2Fstaff.html" class="admin-login" aria-label="Staff Login">Staff Login</a>
+</div>
+</div>
+<div class="header" id="home">
+<div class="main-logo"><img src="assets/images/dipvtc.png" alt="DIPVTC"></div>
+<h1 style="margin:0">DIPVTC</h1>
+<div class="motto" id="mottoText">The Empire Of Excellence | Your Success Is Our Priority | In This Family We Don't Fail</div>
+<div class="header-hero">
+<h1 id="heroTitle">Empowering Futures Through <b>Quality Education</b></h1>
+<p id="heroSubText" style="margin:8px 0 0 0;color:#cbd5e1;font-size:14px"></p>
+<div class="hero-cta">
+<a href="programs.html" class="primary">View Programs</a>
+<a href="courses.html" style="background:#fff;color:#0a1931;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:13px">View All Courses</a>
+<a onclick="openEnquiry()" class="secondary">Enquire Now</a>
+</div>
+<div id="admissionBadge" class="badge">Admission Open 2027 | Fees Fair and Affordable</div>
+</div>
+</div>
+
+<div class="welcome-sec" id="welcome" data-slideshow-manifest="/assets/home-welcome-slides/slides.json">
+<h2 id="welcomeTitle">Welcome to Double Impact Private College</h2>
+<p id="welcomeText" style="font-size:13px;color:#4b5563;line-height:1.7;margin-top:10px">Welcome to DIPVTC - The Empire of Excellence. We nurture talent from ECD to A-Level, HEXCO and Forex trading. Your success is our priority, in this family we don't fail.</p>
+<br>
+<a href="about.html" style="background:#0a1931;color:#fff;padding:10px 18px;border-radius:20px;font-size:12px;font-weight:bold;display:inline-block">Read More About Us </a>
+<a href="programs.html" style="background:#e67e22;color:#fff;padding:10px 18px;border-radius:20px;font-size:12px;font-weight:bold;display:inline-block;margin-left:8px">View All 6 Schools </a>
+</div>
+
+<div style="padding:20px;background:#fff;display:grid;grid-template-columns:repeat(4,1fr);gap:12px" id="courses">
+<div style="grid-column:1/-1;text-align:center"><h3 id="coursesTitle" style="color:#0a1931;margin:0 0 10px 0">Our Popular Courses</h3>
+<a href="courses.html" style="font-size:12px;background:#0a1931;color:#fff;padding:6px 14px;border-radius:20px;font-weight:bold;display:inline-block;margin-top:6px">View All Courses </a></div>
+<div class="course-card course-cambridge"><h4 style="font-size:13px;color:#0a1931;margin:0 0 6px 0">Cambridge Program</h4><p style="font-size:11px;color:#6b7280;margin:0">IGCSE, AS & A Level with qualified tutors.</p></div>
+<div class="course-card course-zimsec"><h4 style="font-size:13px;color:#0a1931;margin:0 0 6px 0">ZIMSEC Program</h4><p style="font-size:11px;color:#6b7280;margin:0">O & A Level support for local curriculum.</p></div>
+<div class="course-card course-hexco"><h4 style="font-size:13px;color:#0a1931;margin:0 0 6px 0">HEXCO Courses</h4><p style="font-size:11px;color:#6b7280;margin:0">Technical & vocational certificates.</p></div>
+<div class="course-card course-short"><h4 style="font-size:13px;color:#0a1931;margin:0 0 6px 0">Short Courses</h4><p style="font-size:11px;color:#6b7280;margin:0">Computer, Hospitality, Business.</p></div>
+<div class="home-course-highlights" id="homeCourseHighlights" hidden><h4>Featured subjects from our schools</h4><div class="home-course-highlight-grid" id="homeCourseHighlightGrid"></div><a class="home-course-more" href="/courses.html">Browse all courses →</a></div>
+</div>
+
+<div class="pathways-sec" id="pathways">
+<h2 style="text-align:center;color:#0a1931">DIPVTC Study Pathways</h2>
+<div style="text-align:center;margin-bottom:10px"><a href="pathway.html" style="font-size:12px;background:#e67e22;color:#fff;padding:6px 14px;border-radius:20px;font-weight:bold;display:inline-block">View All Pathways </a></div>
+<div class="pathways-grid" id="homePathwaysGrid">
+<div class="pathway-slide-card" data-slideshow-manifest="/assets/pathway-slides/cambridge/slides.json" style="background-color:#fff;border-radius:10px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,0.06);border-left:4px solid #e67e22"><h4 style="font-size:13px;color:#0a1931">Cambridge Pathway</h4><ul style="margin:0 0 0 14px;font-size:12px;color:#4b5563"><li>Checkpoint</li><li>IGCSE</li><li>AS Level</li><li>A-Level</li></ul></div>
+<div class="pathway-slide-card" data-slideshow-manifest="/assets/pathway-slides/zimsec/slides.json" style="background-color:#fff;border-radius:10px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,0.06);border-left:4px solid #1e90ff"><h4 style="font-size:13px;color:#0a1931">ZIMSEC Pathway</h4><ul style="margin:0 0 0 14px;font-size:12px;color:#4b5563"><li>Grade 7</li><li>O'Level</li><li>A-Level</li></ul></div>
+<div class="pathway-slide-card" data-slideshow-manifest="/assets/pathway-slides/technical/slides.json" style="background-color:#fff;border-radius:10px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,0.06);border-left:4px solid #059669"><h4 style="font-size:13px;color:#0a1931">Technical Pathway</h4><ul style="margin:0 0 0 14px;font-size:12px;color:#4b5563"><li>HEXCO NC</li><li>HEXCO ND</li></ul></div>
+<div class="pathway-slide-card" data-slideshow-manifest="/assets/pathway-slides/vocational/slides.json" style="background-color:#fff;border-radius:10px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,0.06);border-left:4px solid #7c3aed"><h4 style="font-size:13px;color:#0a1931">Vocational Pathway</h4><ul style="margin:0 0 0 14px;font-size:12px;color:#4b5563"><li>Hospitality</li><li>IT</li><li>Business</li></ul></div>
+</div>
+</div>
+
+<div class="admin-footer" id="contact-footer">
+<div class="footer-layout">
+<div class="footer-card" id="admission" style="background:#f8fafc"><h2 id="admissionTitle">Admission 2027</h2><p id="admissionText">Fees Fair and Affordable. Enroll now for 2027 intake.</p><a href="admission.html" style="background:#e67e22;color:#fff;padding:10px 20px;border-radius:20px;font-weight:bold;cursor:pointer">Apply Now</a></div>
+<div id="footerCenter">
+<span id="footerText">© 2026 DIPVTC - www.dipvtc.com</span><br>
+<a href="contact.html" style="display:inline-block;margin-top:10px;background:#25D366;color:#fff;padding:8px 18px;border-radius:20px;font-size:12px;font-weight:bold;text-decoration:none;border:1px solid #fff">Contact Us - Email | Call | WhatsApp</a><br>
+<a href="/login.html?next=%2Fadmin.html" style="display:inline-block;margin-top:10px;background:#e67e22;color:#fff;padding:8px 18px;border-radius:20px;font-size:12px;font-weight:bold;text-decoration:none;border:1px solid #fff">Admin / Owner Login</a>
+<br><a href="/portal-login.html" style="display:inline-block;margin-top:10px;background:#ffffff;color:#0a1931;padding:8px 18px;border-radius:20px;font-size:12px;font-weight:bold;text-decoration:none;border:1px solid #fff">Parent / Student Portal</a>
+<div style="margin-top:18px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.15);font-size:12px;color:#cbd5e1;line-height:1.6">
+Email: <span id="contactEmail">info@dipvtc.com</span><br>
+Phone: <span id="contactPhones">+27 746 377 513 | +27 649 122 788</span><br>
+Address: <span id="contactAddress">Harare, Zimbabwe</span><br>
+<span style="font-size:10px;color:#9ca3af;display:block;margin-top:10px" id="enqCountFooter">Enquiries: 0</span>
+</div>
+</div>
+<div class="footer-card" id="news"><h2 id="newsTitle">Latest News</h2><p id="newsText">No news posted yet.</p><div id="newsListPublic" style="margin-top:12px;text-align:left"></div><a href="news.html" style="color:#0a1931;font-weight:bold;font-size:13px">View All News</a></div>
+</div>
+</div>
+
+<div class="modal" id="enqModal"><div class="modal-box">
+<h3 style="margin:0 0 10px 0;color:#0a1931">Quick Enquiry</h3>
+<input id="qName" placeholder="Full Name"><input id="qEmail" placeholder="Email">
+<select id="qCourse"><option>Cambridge</option><option>ZIMSEC</option><option>HEXCO</option><option>Practical</option><option>DeityPro FX</option><option>South Africa</option></select>
+<div style="display:flex;gap:8px;margin-top:10px"><button style="background:#e5e7eb;color:#111" onclick="closeEnquiry()">Cancel</button><button onclick="submitEnquiry()">Submit Enquiry</button></div>
+</div></div>
+
+<script>
+function applySiteContent(){
+ try{
+  const get = k => localStorage.getItem(k);
+   if(get('dipvtc_site_hero')) document.getElementById('heroTitle').textContent=get('dipvtc_site_hero');
+  if(get('dipvtc_site_herosub')) document.getElementById('heroSubText').textContent=get('dipvtc_site_herosub');
+  if(get('dipvtc_site_motto')) document.getElementById('mottoText').textContent=get('dipvtc_site_motto');
+  if(get('dipvtc_admission_text')) document.getElementById('admissionBadge').textContent=get('dipvtc_admission_text');
+  if(get('dipvtc_welcome_title')) document.getElementById('welcomeTitle').textContent=get('dipvtc_welcome_title');
+  if(get('dipvtc_welcome_text')) document.getElementById('welcomeText').textContent=get('dipvtc_welcome_text');
+  if(get('dipvtc_site_coursesTitle')) document.getElementById('coursesTitle').textContent=get('dipvtc_site_coursesTitle');
+  if(get('dipvtc_admission_sec_title')) document.getElementById('admissionTitle').textContent=get('dipvtc_admission_sec_title');
+  if(get('dipvtc_admission_sec_text')) document.getElementById('admissionText').textContent=get('dipvtc_admission_sec_text');
+  if(get('dipvtc_news_title')) document.getElementById('newsTitle').textContent=get('dipvtc_news_title');
+  if(get('dipvtc_news_text')) document.getElementById('newsText').textContent=get('dipvtc_news_text');
+  if(get('dipvtc_site_email')) document.getElementById('contactEmail').textContent=get('dipvtc_site_email');
+  if(get('dipvtc_site_phones')) document.getElementById('contactPhones').textContent=get('dipvtc_site_phones');
+  if(get('dipvtc_site_address')) document.getElementById('contactAddress').textContent=get('dipvtc_site_address');
+  if(get('dipvtc_site_footer')) document.getElementById('footerText').textContent=get('dipvtc_site_footer');
+   document.getElementById('enqCountFooter').textContent='Admission enquiries welcome';
+   const news=JSON.parse(get('dipvtc_news')||'[]');
+   if(news.length){const host=document.getElementById('newsListPublic');host.replaceChildren();news.slice().reverse().slice(0,2).forEach(n=>{const card=document.createElement('div');card.style.cssText='border:1px solid #eee;padding:10px;border-radius:8px;margin:6px 0';const title=document.createElement('b');title.textContent=n.title||'';const date=document.createElement('small');date.textContent=n.date||'';const body=document.createElement('p');body.style.fontSize='12px';body.textContent=n.body||'';card.append(title,document.createElement('br'),date,body);host.appendChild(card);});}
+ }catch(e){}
+}
+applySiteContent();
+function renderManagedHomeCourses(){try{const saved=window.dipvtcStore.getItem('dipvtc_subjects_image_boxes');const legacy=window.dipvtcStore.getItem('dipvtc_courses');const courses=JSON.parse(saved||legacy||'[]');if(!Array.isArray(courses)||!courses.length)return;const section=document.getElementById('homeCourseHighlights');const grid=document.getElementById('homeCourseHighlightGrid');const colors=[['#fff1e7','#e67e22'],['#edf8ef','#27ae60'],['#f2ecff','#7c3aed'],['#eaf4ff','#2586c7']];courses.slice(0,4).forEach((value,index)=>{const course=typeof value==='string'?{name:value}:value||{};const name=String(course.name||course.title||'Course');const school=String(course.school||'DIPVTC');const levels=Array.isArray(course.levels)?course.levels.join(', '):String(course.levels||'');const link=document.createElement('a');link.className='home-course-mini';link.href='/courses.html?course='+encodeURIComponent(name);const palette=colors[index%colors.length];link.style.setProperty('--course-tint',palette[0]);link.style.setProperty('--course-accent',palette[1]);const title=document.createElement('strong');title.textContent=name;const detail=document.createElement('small');detail.textContent=levels?school+' · '+levels:school;link.append(title,detail);grid.appendChild(link)});section.hidden=false}catch(error){console.info('Server-managed course preview is not available yet.',error)}}
+renderManagedHomeCourses();
+function renderManagedHomePathways(){try{const raw=window.dipvtcStore.getItem('dipvtc_pathways_v2');if(!raw)return;const pathways=JSON.parse(raw);if(!Array.isArray(pathways))return;const grid=document.getElementById('homePathwaysGrid');grid.replaceChildren();if(!pathways.length){const empty=document.createElement('p');empty.textContent='No pathways are currently published.';empty.style.cssText='grid-column:1/-1;padding:20px;text-align:center;color:#68768b';grid.appendChild(empty);return}pathways.forEach((pathway,index)=>{const p=pathway||{};const title=String(p.title||'Study Pathway');const tag=String(p.tag||'Pathway');const color=/^#[0-9a-f]{3,8}$/i.test(String(p.color||''))?p.color:['#e67e22','#2586c7','#059669','#7c3aed'][index%4];const card=document.createElement('a');card.className='pathway-slide-card';card.href='/pathway.html?pathway='+encodeURIComponent(title);card.style.borderLeft='4px solid '+color;const low=(title+' '+tag).toLowerCase();const manifest=low.includes('cambridge')?'/assets/pathway-slides/cambridge/slides.json':low.includes('zimsec')?'/assets/pathway-slides/zimsec/slides.json':low.includes('technical')||low.includes('hexco')?'/assets/pathway-slides/technical/slides.json':low.includes('vocational')||low.includes('short course')?'/assets/pathway-slides/vocational/slides.json':'';if(manifest)card.dataset.slideshowManifest=manifest;else{const image=String(p.image||'');if(/^https:\/\//i.test(image)||image.startsWith('/assets/')){card.style.backgroundImage='url("'+image.replace(/["'()\\]/g,'')+'")';card.dataset.slideActive='true'}}const heading=document.createElement('h4');heading.textContent=title;heading.style.cssText='font-size:13px;color:#0a1931;margin:0 0 6px 0';const label=document.createElement('small');label.className='pathway-tag';label.textContent=tag;label.style.cssText='display:block;font-size:11px;color:#58677c;margin:0 0 8px';const list=document.createElement('ul');list.style.cssText='margin:0 0 0 14px;font-size:12px;color:#4b5563';(Array.isArray(p.steps)?p.steps:[]).slice(0,4).forEach(step=>{const item=document.createElement('li');item.textContent=String(step);list.appendChild(item)});const action=document.createElement('span');action.className='pathway-action';action.textContent='Explore pathway →';card.append(heading,label,list,action);grid.appendChild(card)})}catch(error){console.info('Server-managed pathways are not available yet.',error)}}
+renderManagedHomePathways();
+async function startCardSlideshow(card,manifestUrl){
+ try{
+  const response=await fetch(manifestUrl,{cache:'no-store'});
+  if(!response.ok)return;
+  const config=await response.json();
+  const images=Array.isArray(config.images)?config.images.filter(name=>typeof name==='string'&&!name.includes('..')&&!/[\\/]/.test(name)&&/\.(jpe?g|png|webp|avif)$/i.test(name)):[];
+  if(!images.length)return;
+  const folder=manifestUrl.slice(0,manifestUrl.lastIndexOf('/')+1);
+  let index=-1;
+  const showNext=()=>{
+   let attempts=0;
+   const tryImage=()=>{
+    index=(index+1)%images.length;
+    const path=folder+encodeURIComponent(images[index]);
+    const preview=new Image();
+    preview.onload=()=>{card.style.backgroundImage=`url("${path}")`;card.dataset.slideActive='true'};
+    preview.onerror=()=>{if(++attempts<images.length)tryImage()};
+    preview.src=path;
+   };
+   tryImage();
+  };
+  showNext();
+  const interval=Number(config.intervalMs);
+  window.setInterval(showNext,Number.isFinite(interval)?Math.max(3000,Math.min(interval,60000)):7000);
+ }catch(error){console.info('Slideshow is not configured yet:',manifestUrl)}
+}
+document.querySelectorAll('[data-slideshow-manifest]').forEach(card=>startCardSlideshow(card,card.dataset.slideshowManifest));
+function openEnquiry(){document.getElementById('enqModal').classList.add('active')}
+function closeEnquiry(){document.getElementById('enqModal').classList.remove('active')}
+async function submitEnquiry(){
+  const name=document.getElementById('qName').value; const email=document.getElementById('qEmail').value; const course=document.getElementById('qCourse').value;
+  if(!name||!email){alert('Fill name and email');return;}
+  try{const response=await fetch('/api/enquiries',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,course})});const result=await response.json();if(!response.ok)throw new Error(result.error||'The enquiry could not be sent.');alert('Enquiry sent');closeEnquiry();document.getElementById('qName').value='';document.getElementById('qEmail').value='';}
+  catch(error){alert(error.message||'The server could not save this enquiry. Please try again.');}
+}
+</script>
+<script src="/assets/public-portal-banner.js" defer></script></body>
+</html>

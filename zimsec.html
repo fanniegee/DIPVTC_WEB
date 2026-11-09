@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DIPVTC - ZIMSEC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Montserrat',Arial,sans-serif;background:#f0f8ff}
+.header{background:#0a1931;color:#fff;text-align:center;padding:28px 16px}
+.header img.main-logo{width:110px;height:110px;border-radius:50%;border:4px solid #5dade2;object-fit:cover;background:#fff;margin-bottom:10px;cursor:default; pointer-events:none;}
+.header h1{margin:6px 0;color:#5dade2}
+.btn-home{display:inline-block;margin-top:14px;background:#5dade2;color:#fff;padding:10px 22px;border-radius:30px;text-decoration:none;font-weight:bold}
+.btn-home:hover{background:#fff;color:#0a1931}
+.course-card{background:#edf6ff;border-left:6px solid #5dade2;border-right:6px solid #5dade2;border-radius:16px;padding:20px;margin:16px;display:flex;gap:16px;align-items:flex-start;box-shadow:0 2px 10px rgba(0,0,0,0.08)}
+.course-card img.block-logo{width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid #5dade2;flex-shrink:0;background:#fff;cursor:default; pointer-events:none;}
+.badge{background:#eaf4ff;padding:8px 12px;border-radius:8px;margin:6px 0;font-size:14px;line-height:1.4}
+.level-tag{background:#0a1931;color:#fff;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:bold;display:inline-block;margin-bottom:8px}
+footer{background:#0a1931;color:#fff;text-align:center;padding:16px;margin-top:20px}
+button,input,select,textarea{font:inherit}
+</style>
+<script>function resolveDIPVTCImage(value){var src=String(value||"").trim();if(!src)return "/assets/images/dipvtc.png";if(/(?:^|\/)zimsec-main\.png$/i.test(src))return "/assets/images/zimsec.png";if(/^(data:|blob:|https?:\/\/|\/)/i.test(src))return src;if(src.indexOf("images/")===0)return "/assets/"+src;if(src.indexOf("assets/")===0)return "/"+src;return "/assets/images/"+src.replace(/^\/+/,"");}</script>
+<link rel="stylesheet" href="/assets/site-footer.css">
+</head>
+<body>
+
+<div class="header">
+<img id="zlogo-main" src="/assets/images/zimsec.png" alt="ZIMSEC Logo" class="main-logo" title="Logo - View Only">
+<h1>ZIMSEC Curriculum</h1>
+<p>Official ZIMSEC Pathway - ECD to A-Level (With Cambridge Equivalent)</p>
+<a href="index.html" class="btn-home"> Back to Home</a>
+</div>
+
+<div class="course-card">
+<img id="zlogo-1" src="/assets/images/zimsec-ecd.png" class="block-logo" title="Logo - View Only">
+<div>
+<div class="level-tag">LEVEL 1 - ECD</div>
+<h3>ECD A & ECD B - (Cambridge Early Years 1-3)</h3>
+<div class="badge"><b>Age:</b> 3-5 Years | ECD A=3-4yrs, ECD B=4-5yrs</div>
+<div class="badge"><b>Learning Areas:</b> Language Arts | Mathematics & Science | Heritage - Social Science | Visual & Performing Arts | Physical Education | ICT</div>
+</div>
+</div>
+
+<div class="course-card">
+<img id="zlogo-2" src="/assets/images/zimsec-primary.png" class="block-logo" title="Logo - View Only">
+<div>
+<div class="level-tag">LEVEL 2 - PRIMARY</div>
+<h3>Grade 1 to Grade 7 - (Cambridge Primary Stage 1-6)</h3>
+<div class="badge"><b>Age:</b> 5-13 Years | Grade 7 ZIMSEC Exam</div>
+<div class="badge"><b>Core:</b> English | Mathematics | Science & Technology | Agriculture | Heritage - Social Studies | FAREME | ICT | Visual & Performing Arts | PE</div>
+</div>
+</div>
+
+<div class="course-card">
+<img id="zlogo-3" src="/assets/images/zimsec-junior.png" class="block-logo" title="Logo - View Only">
+<div>
+<div class="level-tag">LEVEL 3 - JUNIOR SECONDARY</div>
+<h3>Form 1 & Form 2 (ZJC Level) - (Cambridge Lower Secondary Stage 7-8)</h3>
+<div class="badge"><b>Age:</b> 13-15 Years</div>
+<div class="badge"><b>Core:</b> English | Mathematics | Combined Science | Heritage | Agriculture</div>
+<div class="badge"><b>Electives:</b> History | Geography | Commerce | Accounts | Computer Science | Food & Nutrition | Fashion | Woodwork | Metalwork | Building | Art</div>
+</div>
+</div>
+
+<div class="course-card">
+<img id="zlogo-4" src="/assets/images/zimsec-olevel.png" class="block-logo" title="Logo - View Only">
+<div>
+<div class="level-tag">LEVEL 4 - SENIOR SECONDARY</div>
+<h3>Form 3 & Form 4 O-Level - (Cambridge IGCSE Stage 10-11)</h3>
+<div class="badge"><b>Age:</b> 15-17 Years | ZIMSEC O-Level</div>
+<div class="badge"><b>Compulsory:</b> English | Mathematics | Science (Combined / Biology, Chemistry, Physics)</div>
+<div class="badge"><b>Commercials & Arts:</b> Commerce | Accounts | Business Studies | Economics | Geography | History | Literature | Heritage</div>
+<div class="badge"><b>Practicals:</b> Computer Science | Agriculture | Food | Fashion | Wood | Metal | Building | Art | Music</div>
+</div>
+</div>
+
+<div class="course-card">
+<img id="zlogo-5" src="/assets/images/zimsec-alevel.png" class="block-logo" title="Logo - View Only">
+<div>
+<div class="level-tag">LEVEL 5 - ADVANCED</div>
+<h3>Form 5 & Form 6 A-Level - (Cambridge AS & A-Level)</h3>
+<div class="badge"><b>Age:</b> 17-19 Years | University Entry</div>
+<div class="badge"><b>Sciences:</b> Biology | Chemistry | Physics | Mathematics | Further Mathematics | Computer Science | Agriculture | Geography</div>
+<div class="badge"><b>Commercials:</b> Accounting | Business Studies | Economics | Management of Business</div>
+<div class="badge"><b>Arts:</b> History | Literature | Divinity | Shona/Ndebele | Sociology | Art | Heritage</div>
+</div>
+</div>
+
+<footer>&copy; 2026 DIPVTC ZIMSEC Centre | ZIMSEC Registered</footer>
+
+<!-- LOCKED -->
+<input type="file" id="input-zmain" accept="image/*" style="display:none" disabled>
+<input type="file" id="input-z1" accept="image/*" style="display:none" disabled>
+<input type="file" id="input-z2" accept="image/*" style="display:none" disabled>
+<input type="file" id="input-z3" accept="image/*" style="display:none" disabled>
+<input type="file" id="input-z4" accept="image/*" style="display:none" disabled>
+<input type="file" id="input-z5" accept="image/*" style="display:none" disabled>
+
+<script>
+// VIEW ONLY LOCKED
+function setupLogo(imgId, inputId, key){
+  const img=document.getElementById(imgId);
+  const input=document.getElementById(inputId);
+  if(input) input.remove();
+  const saved=localStorage.getItem(key);
+  if(saved && img) img.src=resolveDIPVTCImage(saved);
+  if(img){ img.style.pointerEvents='none'; img.style.cursor='default'; img.onclick=null; }
+}
+setupLogo('zlogo-main','input-zmain','zimsec_main_new');
+setupLogo('zlogo-1','input-z1','zimsec_1');
+setupLogo('zlogo-2','input-z2','zimsec_2');
+setupLogo('zlogo-3','input-z3','zimsec_3');
+setupLogo('zlogo-4','input-z4','zimsec_4');
+setupLogo('zlogo-5','input-z5','zimsec_5');
+</script>
+
+<script>
+function addCourseToSystem(school, courseName, level){
+  let v2 = JSON.parse(localStorage.getItem('dipvtc_courses_v2')||'[]');
+  v2.push({school: school, name: courseName, level: level, date: new Date().toISOString()});
+  localStorage.setItem('dipvtc_courses_v2', JSON.stringify(v2));
+  let old = JSON.parse(localStorage.getItem('dipvtc_courses')||'[]');
+  old.push(school+' - '+courseName);
+  localStorage.setItem('dipvtc_courses', JSON.stringify(old));
+}
+</script>
+<script src="/assets/site-footer.js" defer></script>
+<script src="/assets/public-portal-banner.js" defer></script></body>
+</html>
+
+
+
+
+

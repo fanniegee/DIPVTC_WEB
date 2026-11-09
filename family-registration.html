@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Send a learner registration request to DIPVTC Admissions.">
+  <title>Student Registration &amp; Approval | DIPVTC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root{font-family:Montserrat,Arial,sans-serif;color:#172b49;background:#f3f6fb}*{box-sizing:border-box}body{margin:0}.top{padding:34px 18px;background:linear-gradient(120deg,#0a1931,#203b60);color:#fff;text-align:center}.top h1{margin:7px 0;font-size:clamp(27px,5vw,40px);font-weight:900}.top p{max-width:720px;margin:0 auto;color:#dce5f1;font-size:13px;line-height:1.7}.wrap{width:min(850px,100%);margin:25px auto 55px;padding:0 16px}.card{padding:25px;background:#fff;border:1px solid #e1e7ef;border-radius:18px;box-shadow:0 12px 36px #0a193110}.notice{margin:0 0 20px;padding:13px 15px;border-left:4px solid #e67e22;border-radius:8px;background:#fff5ed;color:#5e422e;font-size:12px;line-height:1.7}.grid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}.field{display:grid;gap:6px;margin:9px 0}.field.full{grid-column:1/-1}.field label{font-size:10px;font-weight:800;text-transform:uppercase;color:#52647e}.field input,.field select,.field textarea{width:100%;min-height:43px;padding:10px 12px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:#172b49;font:500 12px Montserrat,Arial,sans-serif}.field textarea{resize:vertical}.actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:18px}.btn{display:inline-flex;justify-content:center;align-items:center;min-height:42px;padding:11px 17px;border:0;border-radius:22px;background:#e67e22;color:#fff;font:800 12px Montserrat,Arial,sans-serif;text-decoration:none;cursor:pointer}.btn.secondary{background:#0a1931}.btn:disabled{opacity:.6;cursor:wait}.status{min-height:24px;margin-top:13px;font-size:12px;line-height:1.6}.back{text-align:center;margin-top:18px;font-size:12px}.back a{color:#0a1931;font-weight:800}@media(max-width:580px){.grid{grid-template-columns:1fr}.field.full{grid-column:auto}.card{padding:19px}}
+  </style>
+  <link rel="stylesheet" href="/assets/site-footer.css">
+</head>
+<body>
+  <header class="top"><div><strong style="color:#ffd0ad">DOUBLE IMPACT PRIVATE COLLEGE</strong><h1>Student Registration</h1><p>Students can apply directly. A parent or guardian may help complete the form. Admissions reviews each application before the student portal is opened.</p></div></header>
+  <main class="wrap"><section class="card">
+    <p class="notice"><strong>How registration works:</strong> Create the student account with the student’s own working email and a password they can remember. The account remains locked while Admissions reviews the application. Once approved, the student signs in with the same email and password. A parent or guardian can help fill in the form; do not use the parent’s email as the student email.</p>
+    <form id="registrationForm">
+      <div class="grid">
+        <div class="field"><label for="studentName">Student full name</label><input id="studentName" name="studentName" autocomplete="name" maxlength="180" required></div>
+        <div class="field"><label for="studentEmail">Student email (required)</label><input id="studentEmail" name="studentEmail" type="email" autocomplete="email" maxlength="254" required></div>
+        <div class="field"><label for="password">Create student password</label><input id="password" name="password" type="password" minlength="10" maxlength="256" autocomplete="new-password" required><small>At least 10 characters. The student will use this after approval.</small></div>
+        <div class="field"><label for="confirmPassword">Confirm password</label><input id="confirmPassword" name="confirmPassword" type="password" minlength="10" maxlength="256" autocomplete="new-password" required></div>
+        <div class="field"><label for="schoolCode">Choose school</label><select id="schoolCode" name="schoolCode" required><option value="">Loading schools…</option></select></div>
+        <div class="field"><label for="className">Choose intended class / course</label><select id="className" name="className" required disabled><option value="">Choose a school first</option></select></div>
+        <div class="field"><label for="dateOfBirth">Learner date of birth (optional)</label><input id="dateOfBirth" name="dateOfBirth" type="date"></div>
+        <div class="field"><label for="guardianName">Parent / guardian name (optional)</label><input id="guardianName" name="guardianName" autocomplete="name" maxlength="180"></div>
+        <div class="field"><label for="guardianEmail">Parent / guardian email (optional)</label><input id="guardianEmail" name="guardianEmail" type="email" autocomplete="email" maxlength="254"></div>
+        <div class="field"><label for="guardianPhone">Parent / guardian phone (optional)</label><input id="guardianPhone" name="guardianPhone" autocomplete="tel" maxlength="40"></div>
+        <div class="field full"><label for="notes">Anything Admissions should know? (optional)</label><textarea id="notes" name="notes" rows="4" maxlength="1500" placeholder="Learning needs, experience, or a good time to contact the family"></textarea></div>
+        <div aria-hidden="true" style="position:absolute;left:-10000px"><label for="website">Leave this field empty</label><input id="website" name="website" tabindex="-1" autocomplete="off"></div>
+      </div>
+      <div class="actions"><button class="btn" id="submitButton" type="submit">Submit application</button><a class="btn secondary" href="/login.html?next=%2Fstudent-portal.html">Already registered? Student sign in</a></div>
+      <div class="status" id="status" role="status" aria-live="polite"></div>
+    </form>
+    <div class="back"><a href="/admission.html">Review admissions information</a> · <a href="/">Return to home</a></div>
+  </section></main>
+  <script>
+    const form=document.getElementById('registrationForm'),schoolSelect=document.getElementById('schoolCode'),classSelect=document.getElementById('className');let schools=[];
+    fetch('/api/public/admission-options').then(r=>r.json()).then(data=>{schools=data.schools||[];schoolSelect.replaceChildren(new Option('Choose a school',''),...schools.map(s=>new Option(s.name,s.code)));schoolSelect.addEventListener('change',()=>{const s=schools.find(x=>x.code===schoolSelect.value);classSelect.replaceChildren(new Option('Choose a class / course',''),...(s?.classes||[]).map(c=>new Option(c.name,c.name)));classSelect.disabled=!s})}).catch(()=>{schoolSelect.replaceChildren(new Option('School choices could not be loaded',''))});
+    form.addEventListener('submit',async event=>{
+      event.preventDefault();
+      const button=document.getElementById('submitButton'),status=document.getElementById('status');
+      if(document.getElementById('password').value!==document.getElementById('confirmPassword').value){status.textContent='The passwords do not match.';return}
+      button.disabled=true;status.textContent='Sending your request…';
+      const fields=['guardianName','guardianEmail','guardianPhone','studentName','studentEmail','password','schoolCode','className','dateOfBirth','notes','website'];
+      const body=Object.fromEntries(fields.map(id=>[id,document.getElementById(id).value.trim()]));
+      try{const response=await fetch('/api/student-registrations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const result=await response.json();if(!response.ok)throw new Error(result.error||'The application could not be submitted.');form.reset();classSelect.disabled=true;classSelect.replaceChildren(new Option('Choose a school first',''));schoolSelect.replaceChildren(new Option('Choose a school',''),...schools.map(s=>new Option(s.name,s.code)));status.textContent='Application submitted. The student account is waiting for Admissions approval. Once approved, the student can sign in with the email and password created here.'+(result.emailSent?' A receipt was emailed to the student.':' The application is saved; the email receipt could not be sent.')}
+      catch(error){status.textContent=error.message||'The request could not be sent. Please try again or contact Admissions.'}
+      finally{button.disabled=false}
+    });
+  </script>
+  <script src="/assets/site-footer.js" defer></script>
+</body>
+</html>

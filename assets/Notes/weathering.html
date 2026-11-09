@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Double Impact Private College | O-Level Geography: Weathering Study Guide</title>
+  <style>
+    :root {
+      --bg-main: #0f172a;
+      --bg-card: #1e293b;
+      --bg-card-hover: #334155;
+      --accent-physical: #38bdf8;
+      --accent-chemical: #34d399;
+      --accent-bio: #fbbf24;
+      --accent-exam: #f43f5e;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: #334155;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      line-height: 1.6;
+      padding: 20px;
+    }
+    header {
+      text-align: center;
+      padding: 40px 20px;
+      max-width: 900px;
+      margin: 0 auto 30px;
+      border-bottom: 2px solid var(--border-color);
+    }
+    header h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      background: linear-gradient(90deg, var(--accent-physical), var(--accent-chemical), var(--accent-bio));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    header p { color: var(--text-muted); font-size: 1.1rem; }
+    nav {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      max-width: 900px;
+      margin: 0 auto 30px;
+      flex-wrap: wrap;
+    }
+    .nav-btn {
+      background: var(--bg-card);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+    .nav-btn:hover, .nav-btn.active { background: var(--bg-card-hover); border-color: currentColor; }
+    .nav-btn[data-target="physical"].active { color: var(--accent-physical); }
+    .nav-btn[data-target="chemical"].active { color: var(--accent-chemical); }
+    .nav-btn[data-target="biological"].active { color: var(--accent-bio); }
+    .nav-btn[data-target="exam"].active { color: var(--accent-exam); }
+    main { max-width: 1000px; margin: 0 auto; }
+    .section-block { display: none; animation: fadeIn 0.4s ease-in-out forwards; }
+    .section-block.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .section-header { display: flex; align-items: center; gap: 15px; margin-bottom: 25px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+    .section-header h2 { font-size: 1.8rem; }
+    .badge { padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; text-transform: uppercase; }
+    .badge-physical { background: rgba(56, 189, 248, 0.2); color: var(--accent-physical); }
+    .badge-chemical { background: rgba(52, 211, 153, 0.2); color: var(--accent-chemical); }
+    .badge-bio { background: rgba(251, 191, 36, 0.2); color: var(--accent-bio); }
+    .badge-exam { background: rgba(244, 63, 94, 0.2); color: var(--accent-exam); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 25px; }
+    @media (max-width: 500px) { .grid { grid-template-columns: 1fr; } }
+    .card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 15px; }
+    .card h3 { font-size: 1.3rem; color: var(--text-main); }
+    .diagram-container { background: #090d16; border-radius: 8px; padding: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 220px; position: relative; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.05); }
+    svg { width: 100%; height: 180px; }
+    .formula-box { background: rgba(52, 211, 153, 0.1); border-left: 4px solid var(--accent-chemical); padding: 10px 15px; font-family: "Courier New", Courier, monospace; font-size: 0.95rem; color: #a7f3d0; border-radius: 0 6px 6px 0; }
+    .zimsec-note { background: rgba(244, 63, 94, 0.1); border-left: 4px solid var(--accent-exam); padding: 12px 16px; border-radius: 0 6px 6px 0; font-size: 0.95rem; }
+    .zimsec-note strong { color: var(--accent-exam); }
+    @keyframes freezeExpand { 0%, 20% { d: path('M 90 60 L 110 60 L 105 130 L 95 130 Z'); fill: #38bdf8; } 50%, 80% { d: path('M 82 60 L 118 60 L 110 130 L 90 130 Z'); fill: #e0f2fe; } 100% { d: path('M 90 60 L 110 60 L 105 130 L 95 130 Z'); fill: #38bdf8; } }
+    @keyframes crackWidenLeft { 0%, 20% { transform: translateX(0); } 50%, 80% { transform: translateX(-8px); } 100% { transform: translateX(0); } }
+    @keyframes crackWidenRight { 0%, 20% { transform: translateX(0); } 50%, 80% { transform: translateX(8px); } 100% { transform: translateX(0); } }
+    .ice-water { animation: freezeExpand 6s infinite; }
+    .rock-left { animation: crackWidenLeft 6s infinite; }
+    .rock-right { animation: crackWidenRight 6s infinite; }
+    @keyframes sunPulse { 0%, 100% { opacity: 0.2; transform: scale(0.9); } 50% { opacity: 1; transform: scale(1.1); } }
+    @keyframes layerPeel { 0%, 40% { transform: scale(1); opacity: 1; } 60%, 90% { transform: scale(1.08); opacity: 0.3; } 100% { transform: scale(1); opacity: 1; } }
+    .sun-icon { animation: sunPulse 4s infinite ease-in-out; transform-origin: center; }
+    .peeling-layer { animation: layerPeel 4s infinite ease-in-out; transform-origin: center; }
+    @keyframes rainDrop { 0% { transform: translateY(-20px); opacity: 0; } 50% { opacity: 1; } 100% { transform: translateY(60px); opacity: 0; } }
+    .rain-drop-1 { animation: rainDrop 2s infinite linear; }
+    .rain-drop-2 { animation: rainDrop 2s infinite linear 0.7s; }
+    .rain-drop-3 { animation: rainDrop 2s infinite linear 1.4s; }
+    @keyframes rustTransform { 0%, 20% { fill: #64748b; } 80%, 100% { fill: #b45309; } }
+    .rust-rock { animation: rustTransform 5s infinite alternate; }
+    @keyframes rootGrow { 0% { transform: scaleY(0.2); opacity: 0.5; } 70%, 100% { transform: scaleY(1); opacity: 1; } }
+    .root-path { animation: rootGrow 5s infinite alternate ease-in-out; transform-origin: top; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; background: var(--bg-card); border-radius: 8px; overflow: hidden; }
+    th, td { padding: 14px 18px; text-align: left; border-bottom: 1px solid var(--border-color); }
+    th { background: #090d16; color: var(--text-muted); font-weight: 600; }
+    tr:last-child td { border-bottom: none; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div style="display:inline-block; background: rgba(56,189,248,0.1); border:1px solid #334155; padding:6px 18px; border-radius:20px; margin-bottom:18px;">
+      <span style="color:var(--accent-physical); font-weight:800; letter-spacing:2px; font-size:0.85rem;">DOUBLE IMPACT PRIVATE COLLEGE</span>
+    </div>
+    <h1>Weathering Processes</h1>
+    <p>O-Level Geography & Science Visual Study Notes | Empowering Minds. Excelling in ZIMSEC.</p>
+    <p style="margin-top:18px; font-size:0.9rem; background: #1e293b; display:inline-block; padding:8px 16px; border-radius:20px; border:1px solid #334155; color:var(--text-main);"></p>
+  </header>
+
+  <nav>
+    <button class="nav-btn active" data-target="physical">1. Physical Weathering</button>
+    <button class="nav-btn" data-target="chemical">2. Chemical Weathering</button>
+    <button class="nav-btn" data-target="biological">3. Biological Weathering</button>
+    <button class="nav-btn" data-target="exam">ZIMSEC Exam Prep</button>
+  </nav>
+
+  <main>
+
+    <section id="physical" class="section-block active">
+      <div class="section-header">
+        <h2>Physical / Mechanical Weathering</h2>
+        <span class="badge badge-physical">No Chemical Change</span>
+      </div>
+      <p style="margin-bottom: 20px; color: var(--text-muted);">
+        Disintegration of rocks into smaller fragments without altering their internal mineral composition.
+      </p>
+      <div class="grid">
+        <div class="card">
+          <h3>a) Freeze-Thaw / Frost Shattering</h3>
+          <div class="diagram-container">
+            <svg viewBox="0 0 200 160">
+              <path class="rock-left" d="M 10 140 L 90 140 L 95 60 L 40 20 Z" fill="#475569" />
+              <path class="rock-right" d="M 110 140 L 190 140 L 160 20 L 105 60 Z" fill="#475569" />
+              <path class="ice-water" d="M 90 60 L 110 60 L 105 130 L 95 130 Z" />
+            </svg>
+            <span style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;">Animated: Freeze Expansion &amp; Rock Displacement</span>
+          </div>
+          <p>Water enters rock joints, freezes at night, and expands by approximately <strong>9%</strong>. Repeated freeze-thaw cycles exert tremendous outward pressure, widening cracks until fragments shatter off.</p>
+        </div>
+        <div class="card">
+          <h3>b) Thermal Expansion / Exfoliation</h3>
+          <div class="diagram-container">
+            <svg viewBox="0 0 200 160">
+              <circle class="sun-icon" cx="160" cy="30" r="15" fill="#fbbf24" />
+              <circle cx="100" cy="100" r="40" fill="#475569" />
+              <circle class="peeling-layer" cx="100" cy="100" r="52" fill="none" stroke="#fbbf24" stroke-width="6" stroke-dasharray="15 5" />
+            </svg>
+            <span style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;">Animated: Diurnal Heating &amp; Concentric Peeling</span>
+          </div>
+          <p>Prevalent in hot deserts. Extreme diurnal temperature ranges cause outer rock layers to expand during daytime heating and contract at night, causing outer shells to peel like onion skins.</p>
+        </div>
+        <div class="card">
+          <h3>c) Pressure Release / Unloading</h3>
+          <div class="diagram-container">
+            <svg viewBox="0 0 200 160">
+              <path d="M 30 130 Q 100 80 170 130" fill="none" stroke="#94a3b8" stroke-width="4" />
+              <path d="M 20 100 Q 100 40 180 100" fill="none" stroke="#94a3b8" stroke-width="4" />
+              <path d="M 100 120 L 100 70 M 95 80 L 100 70 L 105 80" stroke="#38bdf8" stroke-width="3" fill="none" />
+              <path d="M 60 130 L 60 90 M 55 100 L 60 90 L 65 100" stroke="#38bdf8" stroke-width="3" fill="none" />
+              <path d="M 140 130 L 140 90 M 135 100 L 140 90 L 145 100" stroke="#38bdf8" stroke-width="3" fill="none" />
+            </svg>
+          </div>
+          <p>Removal of heavy overlying rock masses by erosion reduces confining pressure on underlying igneous rocks, allowing them to expand upward and fracture parallel to the surface.</p>
+        </div>
+        <div class="card">
+          <h3>d) Salt Crystallization</h3>
+          <div class="diagram-container">
+            <svg viewBox="0 0 200 160">
+              <rect x="40" y="40" width="120" height="90" fill="#334155" rx="5" />
+              <path d="M 70 40 L 75 80 L 65 130" stroke="#0f172a" stroke-width="8" fill="none" />
+              <polygon points="75,70 80,65 85,75 78,82" fill="#f8fafc" />
+              <polygon points="68,95 74,90 79,98 70,105" fill="#f8fafc" />
+            </svg>
+          </div>
+          <p>Saline solutions enter pores in arid or coastal rocks. As water evaporates, growing salt crystals exert internal pressure against surrounding mineral grains, causing granular disintegration.</p>
+        </div>
+        <div class="card">
+          <h3>e) Abrasion &amp; Attrition</h3>
+          <p><strong>Abrasion:</strong> Rock particles carried by wind, water, or ice scour and wear away exposed rock surfaces like sandpaper.</p>
+          <p><strong>Attrition:</strong> Transported rock fragments smash against one another, breaking into progressively smaller, smoother, and rounder pieces.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="chemical" class="section-block">
+      <div class="section-header">
+        <h2>Chemical Weathering</h2>
+        <span class="badge badge-chemical">Alters Mineral Composition</span>
+      </div>
+      <p style="margin-bottom: 20px; color: var(--text-muted);">
+        Decomposition of rocks through chemical reactions that alter their mineral structure. Most active in hot, humid climates.
+      </p>
+      <div class="grid">
+        <div class="card">
+          <h3>a) Carbonation</h3>
+          <div class="diagram-container">
+            <svg viewBox="0 0 200 140">
+              <line class="rain-drop-1" x1="50" y1="10" x2="50" y2="30" stroke="#34d399" stroke-width="3" stroke-dasharray="4 2" />
+              <line class="rain-drop-2" x1="100" y1="10" x2="100" y2="30" stroke="#34d399" stroke-width="3" stroke-dasharray="4 2" />
+              <line class="rain-drop-3" x1="150" y1="10" x2="150" y2="30" stroke="#34d399" stroke-width="3" stroke-dasharray="4 2" />
+              <path d="M 20 130 L 70 130 L 70 80 L 130 80 L 130 130 L 180 130" fill="none" stroke="#64748b" stroke-width="8" />
+            </svg>
+          </div>
+          <div class="formula-box">
+            CO2 + H2O → H2CO3 (Carbonic Acid)<br>
+            CaCO3 + H2CO3 → Ca(HCO3)2 (Soluble)
+          </div>
+          <p>Rainwater absorbs atmospheric CO2 to form weak carbonic acid. This reacts with insoluble calcium carbonate in limestone and chalk, converting it into soluble calcium bicarbonate.</p>
+        </div>
+        <div class="card">
+          <h3>b) Oxidation</h3>
+          <div class="diagram-container">
+            <svg viewBox="0 0 200 140">
+              <rect class="rust-rock" x="50" y="35" width="100" height="70" rx="10" />
+            </svg>
+            <span style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;">Animated: Iron oxidation to ferric oxide (Rusting)</span>
+          </div>
+          <div class="formula-box">
+            4Fe2+ + 3O2 + 2H2O → 2Fe2O3·H2O (Rust)
+          </div>
+          <p>Oxygen dissolves in water and reacts with iron-rich minerals (e.g., olivine, pyroxene). The iron oxidizes from ferrous to ferric forms, creating reddish-brown rust that weakens the rock framework.</p>
+        </div>
+        <div class="card">
+          <h3>c) Hydrolysis</h3>
+          <div class="formula-box">
+            Feldspar + H2O + CO2 → Kaolinite (Clay) + Silicic Acid
+          </div>
+          <p>Hydrogen ions (H+) or hydroxyl ions (OH-) in water react directly with rock minerals. For example, hard feldspar in granite reacts with water to form soft kaolin clay, softening the rock matrix.</p>
+        </div>
+        <div class="card">
+          <h3>d) Hydration</h3>
+          <div class="formula-box">
+            Fe2O3 (Hematite) + 3H2O → Fe2O3·3H2O (Limonite)
+          </div>
+          <p>Minerals absorb water directly into their crystalline lattice, expanding their structure. This expansion creates internal stress and causes the rock to crumble.</p>
+        </div>
+        <div class="card">
+          <h3>e) Solution &amp; Chelation</h3>
+          <p><strong>Solution:</strong> Highly soluble minerals (e.g., rock salt / halite) dissolve completely in pure water without requiring acid.</p>
+          <p><strong>Chelation:</strong> Organic acids secreted by living lichens and decaying organic humus bind to metallic ions, dissolving minerals out of the rock structure.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="biological" class="section-block">
+      <div class="section-header">
+        <h2>Biological Weathering</h2>
+        <span class="badge badge-bio">Physical + Chemical Combined</span>
+      </div>
+      <p style="margin-bottom: 20px; color: var(--text-muted);">
+        Disintegration and decomposition of rocks driven by living organisms (plants, animals, microorganisms, and humans).
+      </p>
+      <div class="grid">
+        <div class="card">
+          <h3>a) Plant Root Wedging (Physical)</h3>
+          <div class="diagram-container">
+            <svg viewBox="0 0 200 150">
+              <path d="M 20 140 L 85 140 L 85 50 L 20 50 Z" fill="#475569" />
+              <path d="M 115 140 L 180 140 L 180 50 L 115 50 Z" fill="#475569" />
+              <rect x="92" y="10" width="16" height="40" fill="#78350f" />
+              <path class="root-path" d="M 100 50 Q 95 80 100 130 M 100 70 Q 110 90 108 120" stroke="#15803d" stroke-width="5" fill="none" />
+            </svg>
+          </div>
+          <p>Seeds fall into rock fissures. As plants germinate, roots penetrate deep into cracks searching for moisture. As roots thicken, they exert immense mechanical pressure that splits the rock apart. <em>Local Example: Fig trees splitting walls in Harare CBD.</em></p>
+        </div>
+        <div class="card">
+          <h3>b) Lichens, Mosses &amp; Animals (Chemical &amp; Physical)</h3>
+          <div class="diagram-container">
+            <svg viewBox="0 0 200 150">
+              <path d="M 30 120 C 60 70, 140 70, 170 120 Z" fill="#475569" />
+              <circle cx="80" cy="95" r="8" fill="#84cc16" opacity="0.8" />
+              <circle cx="110" cy="85" r="12" fill="#84cc16" opacity="0.8" />
+              <circle cx="130" cy="100" r="6" fill="#84cc16" opacity="0.8" />
+            </svg>
+          </div>
+          <p><strong>Lichens &amp; Mosses:</strong> Pioneer species that release humic and lichenic acids directly onto rock surfaces, dissolving mineral grains while retaining moisture for ongoing chemical attack.</p>
+          <p><strong>Burrowing Animals:</strong> Termites, earthworms, and rodents break up rock fragments and bring unweathered minerals to the surface.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="exam" class="section-block">
+      <div class="section-header">
+        <h2>ZIMSEC &amp; O-Level Exam Preparation</h2>
+        <span class="badge badge-exam">High-Yield Revision</span>
+      </div>
+      <div class="card" style="margin-bottom: 25px;">
+        <h3>Core Weathering Comparison - Double Impact Private College</h3>
+        <table>
+          <thead>
+            <tr><th>Weathering Type</th><th>Primary Mechanism</th><th>Chemical Change?</th><th>Dominant Environment</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong style="color: var(--accent-physical);">Physical</strong></td><td>Mechanical breakdown (stress, expansion)</td><td>No</td><td>Arid, High Altitude, Periglacial</td></tr>
+            <tr><td><strong style="color: var(--accent-chemical);">Chemical</strong></td><td>Mineral alteration &amp; dissolution</td><td>Yes</td><td>Warm, Humid / Tropical</td></tr>
+            <tr><td><strong style="color: var(--accent-bio);">Biological</strong></td><td>Living agents (roots, acids, burrowing)</td><td>Both Physical &amp; Chemical</td><td>Vegetated, Warm &amp; Moist</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3>Sample Exam Questions &amp; Answering Strategies</h3>
+        <div class="zimsec-note" style="margin-bottom: 15px;">
+          <strong>ZIMSEC 3-Mark Rule for "Describe Biological Weathering":</strong><br>
+          Always include <strong>ONE physical mechanism</strong> (e.g., tree root wedging) AND <strong>ONE chemical mechanism</strong> (e.g., organic lichen acids) along with explicit detail to secure full marks.
+        </div>
+        <div style="background: #090d16; padding: 15px; border-radius: 8px; margin-top: 10px;">
+          <h4 style="color: var(--accent-exam); margin-bottom: 8px;">Key Roles of Weathering:</h4>
+          <ol style="margin-left: 20px; color: var(--text-muted);">
+            <li><strong style="color: var(--text-main);">Prepares Rock for Erosion:</strong> Weakens and fractures bedrock so agents like water and wind can transport debris.</li>
+            <li><strong style="color: var(--text-main);">Soil Formation:</strong> Combines weathered parent rock material with decayed organic matter (humus) to form fertile soil.</li>
+          </ol>
+        </div>
+      </div>
+      <div class="card" style="margin-top:25px; text-align:center; border:1px dashed var(--accent-physical);">
+        <h3>Double Impact Private College</h3>
+        <p>Empowering Minds. Excelling in ZIMSEC.<br>Simplified Notes | Structured Papers | Visual Learning</p>
+      </div>
+    </section>
+
+  </main>
+
+  <footer style="text-align:center; padding:30px; margin-top:40px; border-top:1px solid var(--border-color); color:var(--text-muted); font-size:0.85rem;">
+    © 2026 Double Impact Private College - All Rights Reserved | O-Level Geography Visual Notes
+  </footer>
+
+  <script>
+    const navButtons = document.querySelectorAll('.nav-btn');
+    const sections = document.querySelectorAll('.section-block');
+    navButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        const target = button.getAttribute('data-target');
+        navButtons.forEach(btn => btn.classList.remove('active'));
+        sections.forEach(sec => sec.classList.remove('active'));
+        button.classList.add('active');
+        document.getElementById(target).classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DIPVTC - Cambridge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Montserrat',Arial,sans-serif;background:#f5f7ff}
+.header{background:#0a1931;color:#fff;text-align:center;padding:28px 16px}
+.header img.main-logo{width:110px;height:110px;border-radius:50%;border:4px solid #ff8c00;object-fit:cover;background:#fff;margin-bottom:10px}
+.header h1{margin:6px 0;color:#ff8c00}
+.btn-home{display:inline-block;margin-top:14px;background:#ff8c00;color:#fff;padding:10px 22px;border-radius:30px;text-decoration:none;font-weight:bold}
+.course-card{background:#fff4ea;border-left:6px solid #ff8c00;border-right:6px solid #ff8c00;border-radius:16px;padding:20px;margin:16px;display:flex;gap:16px;align-items:flex-start;box-shadow:0 2px 10px rgba(0,0,0,0.08)}
+.course-card img.block-logo{width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid #ff8c00;flex-shrink:0;background:#fff}
+.badge{background:#eef2ff;padding:8px 12px;border-radius:8px;margin:6px 0;font-size:14px}
+.level-tag{background:#0a1931;color:#fff;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:bold;display:inline-block;margin-bottom:8px}
+button,input,select,textarea{font:inherit}
+</style>
+<script>function resolveDIPVTCImage(value){var src=String(value||"").trim();if(!src)return "/assets/images/dipvtc.png";if(/(?:^|\/)zimsec-main\.png$/i.test(src))return "/assets/images/zimsec.png";if(/^(data:|blob:|https?:\/\/|\/)/i.test(src))return src;if(src.indexOf("images/")===0)return "/assets/"+src;if(src.indexOf("assets/")===0)return "/"+src;return "/assets/images/"+src.replace(/^\/+/,"");}</script>
+<link rel="stylesheet" href="/assets/site-footer.css">
+</head>
+<body>
+
+<div class="header">
+<img id="logo-main" src="/assets/images/cambridge.png" alt="Cambridge Logo" class="main-logo">
+<h1>Cambridge International</h1>
+<p>Official Cambridge Pathway with ZIMSEC Equivalent</p>
+<a href="index.html" class="btn-home"> Back to Home</a>
+</div>
+
+<div id="courseListDisplay" style="max-width:800px;margin:10px auto;padding:0 15px"></div>
+
+<script>
+const SCHOOL_NAME = "Cambridge";
+function renderCoursesSchool(){
+  let v2 = JSON.parse(localStorage.getItem('dipvtc_courses_v2')||'[]');
+  let mine = v2.filter(c=>c.school===SCHOOL_NAME);
+  const div = document.getElementById('courseListDisplay');
+  if(!div) return;
+  div.innerHTML = mine.length ? mine.map((c)=>{
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px;border:1px solid #eee;border-radius:8px;margin:6px 0;background:#fff"><span><b>${c.name}</b> <small style="color:#6b7280">${c.level||''}</small></span></div>`;
+  }).join('') : '';
+}
+renderCoursesSchool();
+</script>
+
+<div class="course-card">
+<img id="logo-1" src="/assets/images/cambridge-early.png" class="block-logo">
+<div><div class="level-tag">LEVEL 1 - FOUNDATION</div><h3>Early Years 1, 2, 3 - (ZIMSEC ECD A & ECD B)</h3><div class="badge">Age: 3-5 Years | Subjects: Communication, Maths, Creative, Physical Development</div></div>
+</div>
+
+<div class="course-card">
+<img id="logo-2" src="/assets/images/cambridge-primary.png" class="block-logo">
+<div><div class="level-tag">LEVEL 2 - PRIMARY</div><h3>Cambridge Primary Stage 1 to 6 - (ZIMSEC Grade 1 to Grade 7)</h3><div class="badge">English | Mathematics | Science | Global Perspectives | Art | Music | PE | ICT</div></div>
+</div>
+
+<div class="course-card">
+<img id="logo-3" src="/assets/images/cambridge-lower.png" class="block-logo">
+<div><div class="level-tag">LEVEL 3 - LOWER SECONDARY</div><h3>Cambridge Lower Secondary Stage 7, 8, 9 - (ZIMSEC Form 1, 2, 3)</h3><div class="badge">English | Maths | Biology | Chemistry | Physics | History | Geography | Business | ICT | Art</div></div>
+</div>
+
+<div class="course-card">
+<img id="logo-4" src="/assets/images/cambridge-igcse.png" class="block-logo">
+<div><div class="level-tag">LEVEL 4 - UPPER SECONDARY</div><h3>Cambridge IGCSE Stage 10 & 11 - (ZIMSEC Form 4 O-Level)</h3><div class="badge">Core + Sciences + Commercials + Arts + Practicals</div></div>
+</div>
+
+<div class="course-card">
+<img id="logo-5" src="/assets/images/cambridge-alevel.png" class="block-logo">
+<div><div class="level-tag">LEVEL 5 - ADVANCED</div><h3>Cambridge AS & A-Level Year 12 & 13 - (ZIMSEC Form 5 & 6)</h3><div class="badge">Physics | Chemistry | Biology | Maths | Business | Economics | Literature etc.</div></div>
+</div>
+
+<input type="file" id="input-main" accept="image/*" style="display:none" disabled>
+<input type="file" id="input-1" accept="image/*" style="display:none" disabled>
+<input type="file" id="input-2" accept="image/*" style="display:none" disabled>
+<input type="file" id="input-3" accept="image/*" style="display:none" disabled>
+<input type="file" id="input-4" accept="image/*" style="display:none" disabled>
+<input type="file" id="input-5" accept="image/*" style="display:none" disabled>
+
+<script>
+function setupEditableLogo(imgId, storageKey){
+  const img = document.getElementById(imgId);
+  const saved = localStorage.getItem(storageKey);
+  if(saved && img) img.src = resolveDIPVTCImage(saved);
+  if(img){ img.style.pointerEvents='none'; img.style.cursor='default'; }
+}
+setupEditableLogo('logo-main','cambridge_main_logo');
+setupEditableLogo('logo-1','cambridge_logo_1');
+setupEditableLogo('logo-2','cambridge_logo_2');
+setupEditableLogo('logo-3','cambridge_logo_3');
+setupEditableLogo('logo-4','cambridge_logo_4');
+setupEditableLogo('logo-5','cambridge_logo_5');
+</script>
+
+<script src="/assets/site-footer.js" defer></script>
+<script src="/assets/public-portal-banner.js" defer></script></body>
+</html>
+
+
+
+

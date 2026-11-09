@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Explore courses and levels offered by Double Impact Private College.">
+<title>Courses | DIPVTC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{font-family:'Montserrat',Arial,sans-serif;color:#0a1931;background:#f4f6f9;font-synthesis:none;text-rendering:optimizeLegibility}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#f4f6f9;font-family:'Montserrat',Arial,sans-serif}
+.top-nav{min-height:58px;padding:10px clamp(16px,4vw,48px);display:flex;justify-content:space-between;align-items:center;gap:14px;background:#fff;border-bottom:1px solid #e5eaf1}
+.brand{font-size:18px;font-weight:900;color:#0a1931;text-decoration:none;letter-spacing:.02em}.brand span{color:#e67e22}.home-link{padding:9px 16px;border-radius:22px;background:#0a1931;color:#fff;font-size:12px;font-weight:800;text-decoration:none}
+.hero{padding:32px 18px 30px;background:linear-gradient(135deg,#0a1931,#183c6b);color:#fff;text-align:center}.hero h1{margin:0;font-size:clamp(26px,4vw,38px);font-weight:900}.hero p{margin:9px auto 0;max-width:680px;color:#d6e2f2;font-size:13px;line-height:1.7}
+.content{width:min(1160px,100%);margin:22px auto 54px;padding:0 18px}.toolbar{display:grid;grid-template-columns:minmax(200px,1fr) minmax(170px,240px) minmax(170px,220px) auto;gap:10px;align-items:center;margin:0 0 12px}
+.control{width:100%;min-height:43px;padding:10px 12px;border:1px solid #d9e1eb;border-radius:10px;background:#fff;color:#172b49;font:500 12px 'Montserrat',Arial,sans-serif}.control:focus{outline:3px solid #e67e2230;border-color:#e67e22}
+.result-count{margin:0 0 16px;color:#68768b;font-size:12px}.clear-btn{min-height:42px;padding:0 14px;border:1px solid #d9e1eb;border-radius:10px;background:#fff;color:#334155;font:700 11px 'Montserrat',Arial,sans-serif;cursor:pointer}.clear-btn:hover{background:#f8fafc}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.course-card{min-width:0;overflow:hidden;display:flex;flex-direction:column;border:1px solid #e3e9f1;border-radius:14px;background:#fff;box-shadow:0 5px 18px #0a19310b;transition:transform .18s ease,box-shadow .18s ease}.course-card:hover{transform:translateY(-3px);box-shadow:0 11px 25px #0a193118}
+.cover{height:172px;position:relative;background:#e9eef5;overflow:hidden}.cover img{display:block;width:100%;height:100%;object-fit:cover}.cover:after{content:'';position:absolute;inset:25% 0 0;background:linear-gradient(transparent,rgba(5,18,38,.75));pointer-events:none}.cover-title{position:absolute;z-index:1;left:15px;right:14px;bottom:13px;margin:0;color:#fff;font-size:19px;line-height:1.25;font-weight:800;text-shadow:0 1px 4px #0008}
+.card-body{padding:14px;display:flex;flex:1;flex-direction:column}.meta{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:11px;color:#65748a;font-size:10px}.school-tag{max-width:64%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:5px 9px;border-radius:15px;background:#edf3fb;color:#304d72;font-size:10px;font-weight:800}.ready{font-weight:700;text-align:right}.level-list{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px}.level-tag{padding:5px 8px;border:1px solid #e2e8f0;border-radius:15px;background:#f7f9fc;color:#3e5069;font-size:10px;font-weight:600}.card-actions{display:flex;align-items:center;justify-content:flex-end;margin-top:auto}.details-btn{border:0;border-radius:20px;padding:9px 13px;background:#e67e22;color:#fff;font:800 10px 'Montserrat',Arial,sans-serif;cursor:pointer}.details-btn:hover{background:#cf6e18}
+.empty{grid-column:1/-1;padding:34px 20px;border:1px dashed #cbd5e1;border-radius:14px;background:#fff;color:#68768b;text-align:center;font-size:13px;line-height:1.7}.empty strong{display:block;color:#203a5b;font-size:15px;margin-bottom:5px}
+.modal{display:none;position:fixed;inset:0;z-index:40;padding:20px;align-items:center;justify-content:center;background:#071629a8}.modal.active{display:flex}.modal-box{width:min(520px,100%);max-height:85vh;overflow:auto;padding:22px;border-radius:16px;background:#fff;box-shadow:0 24px 70px #0004}.modal-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}.modal-head h2{margin:0;color:#0a1931;font-size:20px}.modal-school{margin:5px 0 0;color:#68768b;font-size:11px}.close-btn{width:34px;height:34px;border:0;border-radius:50%;background:#eef2f7;color:#263b59;font-size:18px;cursor:pointer}.modal-photo{width:100%;max-height:220px;object-fit:cover;border-radius:10px;background:#edf1f5}.modal-section{margin:15px 0 7px;font-size:11px;font-weight:800;color:#1b3558;text-transform:uppercase;letter-spacing:.06em}.modal-levels{display:flex;flex-wrap:wrap;gap:7px}.modal-levels span{padding:7px 10px;border:1px solid #dbe4ef;border-radius:18px;background:#f5f8fc;color:#324b6b;font-size:11px;font-weight:600}.modal-ready{margin:14px 0 0;padding:10px 12px;border-radius:8px;background:#edf8f0;color:#28623e;font-size:11px;font-weight:700}
+@media(max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.toolbar{grid-template-columns:1fr 1fr}.toolbar input{grid-column:1/-1}}
+@media(max-width:600px){.grid{grid-template-columns:1fr}.toolbar{grid-template-columns:1fr}.toolbar input{grid-column:auto}.hero{padding:27px 17px}.cover{height:190px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important}}
+</style>
+<link rel="stylesheet" href="/assets/site-footer.css">
+</head>
+<body>
+<nav class="top-nav" aria-label="Main navigation"><a class="brand" href="/">DIP<span>VTC</span></a><a class="home-link" href="/">Back to Home</a></nav>
+<header class="hero"><h1 id="coursesTitle">All Courses</h1><p>Browse our subjects, schools, and available learning levels.</p></header>
+<main class="content">
+  <section class="toolbar" aria-label="Course filters">
+    <input id="courseSearch" class="control" type="search" placeholder="Search courses, levels or schools" aria-label="Search courses, levels or schools">
+    <select id="schoolFilter" class="control" aria-label="Filter by school"><option value="">All schools</option></select>
+    <select id="sortCourses" class="control" aria-label="Sort courses"><option value="name">Course name A–Z</option><option value="school">School A–Z</option></select>
+    <button class="clear-btn" id="clearFilters" type="button">Clear filters</button>
+  </section>
+  <p class="result-count" id="resultCount" aria-live="polite"></p>
+  <section id="courseGrid" class="grid" aria-label="Available courses"></section>
+</main>
+<div class="modal" id="courseModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-hidden="true">
+  <div class="modal-box"><div class="modal-head"><div><h2 id="modalTitle"></h2><p id="modalSchool" class="modal-school"></p></div><button class="close-btn" type="button" aria-label="Close course details">×</button></div><img id="modalImage" class="modal-photo" alt=""><p class="modal-section">Available levels</p><div id="modalLevels" class="modal-levels"></div><p id="modalReady" class="modal-ready"></p></div>
+</div>
+<script>
+function parseCourseList(key){try{const value=JSON.parse(window.dipvtcStore.getItem(key)||'[]');return Array.isArray(value)?value:[]}catch{return []}}
+function normalizeCourse(value,index){const item=typeof value==='string'?{name:value}:value||{};const levels=Array.isArray(item.levels)?item.levels:item.levels?String(item.levels).split(','):[];return {index,name:String(item.name||item.title||'Course').trim(),school:String(item.school||'DIPVTC').trim(),image:String(item.image||'/assets/images/dipvtc.png').trim(),levels:levels.map(level=>String(level).trim()).filter(Boolean),ready:String(item.ready||''),description:String(item.description||'').trim()}}
+const managed=parseCourseList('dipvtc_subjects_image_boxes');
+const legacy=parseCourseList('dipvtc_courses');
+const allCourses=(managed.length?managed:legacy).map(normalizeCourse);
+let visibleCourses=[];
+const grid=document.getElementById('courseGrid');
+const search=document.getElementById('courseSearch');
+const schoolFilter=document.getElementById('schoolFilter');
+const sortSelect=document.getElementById('sortCourses');
+const modal=document.getElementById('courseModal');
+function courseImageUrl(value){const src=String(value||'').trim();if(/^https:\/\//i.test(src))return src;if(/^data:image\/(?:png|jpe?g|gif|webp|avif);/i.test(src))return src;if(src.startsWith('/assets/'))return src;if(src.startsWith('assets/'))return '/'+src;if(src.startsWith('images/'))return '/assets/'+src;return '/assets/images/dipvtc.png'}
+function populateSchoolFilter(){[...new Set(allCourses.map(course=>course.school).filter(Boolean))].sort((a,b)=>a.localeCompare(b)).forEach(school=>{const option=document.createElement('option');option.value=school;option.textContent=school;schoolFilter.appendChild(option)})}
+function renderCourses(){const term=search.value.trim().toLowerCase();const school=schoolFilter.value;visibleCourses=allCourses.filter(course=>{const matchesSearch=!term||[course.name,course.school,...course.levels].join(' ').toLowerCase().includes(term);return matchesSearch&&(!school||course.school===school)});visibleCourses.sort((a,b)=>sortSelect.value==='school'?a.school.localeCompare(b.school)||a.name.localeCompare(b.name):a.name.localeCompare(b.name));grid.replaceChildren();document.getElementById('resultCount').textContent=`Showing ${visibleCourses.length} of ${allCourses.length} courses`;
+  if(!allCourses.length){const empty=document.createElement('div');empty.className='empty';empty.innerHTML='<strong>Course listings are being prepared.</strong>Please check back soon or contact the college for current offerings.';grid.appendChild(empty);return}
+  if(!visibleCourses.length){const empty=document.createElement('div');empty.className='empty';empty.innerHTML='<strong>No matching courses found.</strong>Try a different search or clear the filters.';grid.appendChild(empty);return}
+  visibleCourses.forEach((course,index)=>{const card=document.createElement('article');card.className='course-card';const cover=document.createElement('div');cover.className='cover';const img=document.createElement('img');img.src=courseImageUrl(course.image);img.alt='';img.loading='lazy';img.onerror=()=>{img.onerror=null;img.src='/assets/images/dipvtc.png'};cover.appendChild(img);const title=document.createElement('h2');title.className='cover-title';title.textContent=course.name;cover.appendChild(title);const body=document.createElement('div');body.className='card-body';const meta=document.createElement('div');meta.className='meta';const school=document.createElement('span');school.className='school-tag';school.textContent=course.school;const ready=document.createElement('span');ready.className='ready';ready.textContent=course.ready;meta.append(school,ready);body.appendChild(meta);const levels=document.createElement('div');levels.className='level-list';course.levels.slice(0,5).forEach(label=>{const badge=document.createElement('span');badge.className='level-tag';badge.textContent=label;levels.appendChild(badge)});if(course.levels.length>5){const extra=document.createElement('span');extra.className='level-tag';extra.textContent=`+${course.levels.length-5} more`;levels.appendChild(extra)}body.appendChild(levels);const actions=document.createElement('div');actions.className='card-actions';const button=document.createElement('button');button.type='button';button.className='details-btn';button.textContent='View levels and details';button.addEventListener('click',()=>openCourse(visibleCourses[index]));actions.appendChild(button);body.appendChild(actions);card.append(cover,body);grid.appendChild(card)})
+}
+function openCourse(course){document.getElementById('modalTitle').textContent=course.name;document.getElementById('modalSchool').textContent=course.school;const img=document.getElementById('modalImage');img.src=courseImageUrl(course.image);img.alt=course.name;img.onerror=()=>{img.onerror=null;img.src='/assets/images/dipvtc.png'};const levels=document.getElementById('modalLevels');levels.replaceChildren();if(course.levels.length){course.levels.forEach(level=>{const tag=document.createElement('span');tag.textContent=level;levels.appendChild(tag)})}else{const tag=document.createElement('span');tag.textContent='Contact the college for level information';levels.appendChild(tag)}document.getElementById('modalReady').textContent=course.ready||'Contact the college for availability';modal.classList.add('active');modal.setAttribute('aria-hidden','false');document.querySelector('.close-btn').focus()}
+function closeCourse(){modal.classList.remove('active');modal.setAttribute('aria-hidden','true')}
+document.getElementById('coursesTitle').textContent=window.dipvtcStore.getItem('dipvtc_site_coursesTitle')||'All Courses';
+populateSchoolFilter();
+const requestedCourse=new URLSearchParams(location.search).get('course');if(requestedCourse)search.value=requestedCourse;
+search.addEventListener('input',renderCourses);schoolFilter.addEventListener('change',renderCourses);sortSelect.addEventListener('change',renderCourses);
+document.getElementById('clearFilters').addEventListener('click',()=>{search.value='';schoolFilter.value='';sortSelect.value='name';renderCourses();search.focus()});
+document.querySelector('.close-btn').addEventListener('click',closeCourse);modal.addEventListener('click',event=>{if(event.target===modal)closeCourse()});document.addEventListener('keydown',event=>{if(event.key==='Escape'&&modal.classList.contains('active'))closeCourse()});
+renderCourses();
+</script>
+<script src="/assets/site-footer.js" defer></script>
+<script src="/assets/public-portal-banner.js" defer></script></body>
+</html>
+
+

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Staff Admin - DIPVTC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+body{font-family:'Montserrat',Segoe UI,Arial,sans-serif;background:#f5f7fb;margin:0;padding:0;font-weight:400}
+.top-nav{background:#0a1931;padding:12px 20px;display:flex;justify-content:center;align-items:center;gap:15px;color:#fff;position:relative}
+.top-nav button{padding:8px 20px;border-radius:20px;border:none;font-weight:bold;cursor:pointer}
+.btn-owner{background:#ff8c69;color:#0a1931}
+.btn-home{background:#fff;color:#0a1931;border:1px solid #0a1931!important}
+.right-label{position:absolute;right:20px;font-size:12px;opacity:0.7}
+.container{max-width:900px;margin:20px auto;background:#fff;padding:24px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+.input{width:100%;padding:10px;border:1px solid #d1d5db;border-radius:8px;margin:8px 0}
+.btn-dark{background:#0a1931;color:#fff;padding:12px;width:100%;border-radius:8px;border:none;font-weight:bold;cursor:pointer;margin-top:10px}
+</style>
+</head>
+<body>
+
+<div class="top-nav">
+<div style="display:flex;gap:15px;justify-content:center">
+<button class="btn-owner" onclick="goBackFromAdmin()">Back to Owner Panel</button>
+<button class="btn-home" onclick="window.location.href='index.html'">Go to Home Page</button>
+<button class="btn-home" onclick="window.location.href='/registrations.html'">Learner Registrations</button>
+</div>
+<div class="right-label">Staff Admin - DIPVTC</div>
+</div>
+
+<div class="container">
+<h3 id="welcomeText">Welcome Fannuel Guvaza - All Sections - Admin</h3>
+<p><b>My Tasks from Owner (0/0)</b></p>
+<hr style="margin:15px 0">
+<h4>Assign Course to My Students</h4>
+<input id="stuName" class="input" placeholder="Student Name">
+<input id="stuEmail" class="input" placeholder="Student Email">
+<select id="stuCourse" class="input"><option value="">Select Course</option></select>
+<button class="btn-dark" onclick="assignCourse()">Assign Course to Student</button>
+
+<div style="margin-top:20px">
+<h4>Students I Assigned</h4>
+<div id="myStudents"></div>
+</div>
+
+<div style="text-align:center;margin-top:30px">
+<button onclick="logout()" style="background:#eef2ff;padding:10px 30px;border-radius:20px;border:none;cursor:pointer">Logout</button>
+</div>
+</div>
+
+<script>
+let courses = JSON.parse(localStorage.getItem('dipvtc_courses')||'[]');
+let sel = document.getElementById('stuCourse');
+if(courses.length===0){ sel.innerHTML='<option>No courses yet - feed from Owner</option>'; } else { courses.forEach(c=>{ sel.innerHTML+=`<option>${typeof c==='string'?c:c.name}</option>` }); }
+
+let current = JSON.parse(localStorage.getItem('dipvtc_current')||'null');
+function goBackFromAdmin(){window.location.href=current&&current.role==='owner'?'/owner.html':'/';}
+if(current && current.name){ 
+  // FIX: Show single Admin, not Owner - owner
+  let section = current.section || 'All Sections';
+  // Remove duplicate owner text and replace with Admin
+  if(section.toLowerCase().includes('owner')) section = 'All Sections';
+  document.getElementById('welcomeText').textContent='Welcome '+current.name+' - '+section+' - Admin'; 
+}
+
+async function assignCourse(){ 
+ let name=document.getElementById('stuName').value;
+ let email=document.getElementById('stuEmail').value;
+ let course=document.getElementById('stuCourse').value;
+ if(!name||!email){alert('Fill student details');return}
+ let all=JSON.parse(localStorage.getItem('dipvtc_students')||'[]');
+ all.push({name,email,course,assignedBy:current?current.name:'Owner'});
+ localStorage.setItem('dipvtc_students',JSON.stringify(all));
+ await localStorage.flush();
+ alert('Course assigned and saved to the server');
+ location.reload();
+}
+async function logout(){ await fetch('/api/auth/logout',{method:'POST'}); window.location.href='/'; }
+let myStudentsList = JSON.parse(localStorage.getItem('dipvtc_students')||'[]');
+document.getElementById('myStudents').innerHTML = myStudentsList.length?myStudentsList.map(s=>`<div style="padding:8px;border-bottom:1px solid #eee">${s.name} - ${s.email} - ${s.course}</div>`).join(''):'<small>No students yet</small>';
+</script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Explore the schools and programs offered by Double Impact Private College.">
+<title>Our Programs | DIPVTC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{font-family:'Montserrat',Arial,sans-serif;color:#0a1931;background:#f4f6f9;font-synthesis:none;text-rendering:optimizeLegibility}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#f4f6f9;font-family:'Montserrat',Arial,sans-serif}
+.top-nav{min-height:58px;padding:10px clamp(16px,4vw,48px);display:flex;justify-content:space-between;align-items:center;gap:14px;background:#fff;border-bottom:1px solid #e5e7eb}
+.brand{font-size:18px;font-weight:900;color:#0a1931;text-decoration:none;letter-spacing:.02em}.brand span{color:#e67e22}
+.back-btn{display:inline-flex;align-items:center;justify-content:center;padding:9px 16px;border-radius:22px;background:#0a1931;color:#fff;text-decoration:none;font-size:12px;font-weight:800;transition:background .18s ease,transform .18s ease}.back-btn:hover{background:#183765;transform:translateY(-1px)}
+.header{padding:38px 20px 34px;text-align:center;background:linear-gradient(135deg,#0a1931,#16345e);color:#fff}
+.header h1{margin:0;font-size:clamp(26px,4vw,38px);font-weight:900;letter-spacing:-.03em}.header p{margin:10px auto 0;max-width:700px;color:#d4e0f2;font-size:14px;line-height:1.7}
+.programs-grid{width:min(100%,1040px);margin:30px auto 52px;padding:0 20px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.school{--accent:#e67e22;--card-bg:#fff;--level-bg:#f5f7fb;display:flex;flex-direction:column;align-items:center;min-height:292px;padding:24px 22px 22px;background:var(--card-bg);border:1px solid #e5eaf1;border-top:5px solid var(--accent);border-radius:16px;box-shadow:0 6px 20px rgba(10,25,49,.07);text-align:center;transition:transform .18s ease,box-shadow .18s ease}
+.school:hover{transform:translateY(-3px);box-shadow:0 12px 28px rgba(10,25,49,.12)}
+.logo-box{width:106px;height:106px;margin:0 auto 12px;padding:10px;display:flex;align-items:center;justify-content:center;border-radius:50%;border:1px solid #e8edf4;background:#f8fafc;overflow:hidden}
+.logo-box img{display:block;width:100%;height:100%;object-fit:contain}.school h2{margin:4px 0 10px;font-size:19px;line-height:1.35;font-weight:800;color:#0a1931}
+.level{width:100%;margin:0;padding:10px 12px;border-left:3px solid var(--accent);border-right:3px solid var(--accent);border-radius:7px;background:var(--level-bg);color:#58677c;font-size:12px;line-height:1.55}
+.open-link{margin-top:auto;padding:9px 19px;border-radius:22px;color:#fff;text-decoration:none;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;min-width:104px;transition:filter .18s ease}.open-link:hover{filter:brightness(.92)}
+.empty-state{grid-column:1/-1;padding:28px;border-radius:12px;background:#fff;color:#58677c;text-align:center;font-size:14px}
+@media(max-width:620px){.programs-grid{grid-template-columns:1fr;margin-top:20px;gap:14px}.school{min-height:275px}.header{padding:30px 18px}.header p{font-size:13px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important}}
+</style>
+<link rel="stylesheet" href="/assets/site-footer.css">
+</head>
+<body>
+<nav class="top-nav" aria-label="Main navigation">
+  <a class="brand" href="/">DIP<span>VTC</span></a>
+  <a class="back-btn" href="/">Back to Home</a>
+</nav>
+<header class="header">
+  <h1 id="progTitle">Our Programs</h1>
+  <p>The Empire of Excellence | Your Success Is Our Priority | In This Family We Don't Fail</p>
+</header>
+<main class="programs-grid" id="programsGrid" aria-live="polite"></main>
+<script>
+const defaultSchools=[
+  {name:'Cambridge',desc:'ECD to A-Levels',link:'cambridge.html',logo:'/assets/images/cambridge.png',color:'#e67e22'},
+  {name:'DeityPro FX',desc:'Forex Trading Institute',link:'deityProFx.html',logo:'/assets/images/deityprofx-main.png',color:'#27ae60'},
+  {name:'Practical',desc:'Train | Develop | Succeed',link:'practical.html',logo:'/assets/images/practical.png',color:'#e67e22'},
+  {name:'South Africa CAPS | NCS',desc:'ECD to Grade 12 | Matric',link:'southafrica.html',logo:'/assets/images/southafrica.png',color:'#007a4d'},
+  {name:'Upgrade',desc:'Foundation to Grade 7',link:'upgrade.html',logo:'/assets/images/upgrade.png',color:'#e67e22'},
+  {name:'ZIMSEC',desc:'ECD to HEXCO',link:'zimsec.html',logo:'/assets/images/zimsec.png',color:'#5dade2'}
+];
+function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));}
+function safeLocalLink(value){const raw=String(value||'').trim();if(!raw||/^(javascript|data):/i.test(raw))return '#';if(/^https:\/\//i.test(raw))return raw;return '/'+raw.replace(/^\/+/, '');}
+function iconPath(value){const raw=String(value||'').trim();if(/^https:\/\//i.test(raw))return raw;if(!raw||/^(javascript|data):/i.test(raw))return '/assets/images/dipvtc.png';if(raw.startsWith('/assets/'))return raw;if(raw.startsWith('assets/'))return '/'+raw;if(raw.startsWith('/images/'))return '/assets'+raw;if(raw.startsWith('images/'))return '/assets/'+raw;return '/assets/images/'+raw.replace(/^\/+/, '');}
+function loadPrograms(){
+  const grid=document.getElementById('programsGrid');
+  try{
+    const saved=JSON.parse(window.dipvtcStore.getItem('dipvtc_programs_schools')||'null');
+    const schools=Array.isArray(saved)&&saved.length?saved:defaultSchools;
+    const sorted=schools.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
+    const title=window.dipvtcStore.getItem('dipvtc_programs_title')||`Our Programs - ${sorted.length} Schools`;
+    document.getElementById('progTitle').textContent=title;
+    grid.innerHTML=sorted.map(s=>{
+    const lowerName=String(s.name||'').toLowerCase();
+    const palette=lowerName.includes('cambridge')?['#fff1e7','#fff9f4','#e67e22']:
+      lowerName.includes('deity')?['#edf8ef','#f7fcf8','#27ae60']:
+      lowerName.includes('practical')?['#fff3e8','#fffaf5','#e67e22']:
+      lowerName.includes('south africa')?['#eaf6ef','#f7fcf8','#007a4d']:
+      lowerName.includes('upgrade')?['#f2ecff','#faf7ff','#7c3aed']:
+      lowerName.includes('zimsec')?['#eaf4ff','#f6faff','#2586c7']:['#f1f5f9','#f8fafc','#e67e22'];
+    const accent=/^#[0-9a-f]{3,8}$/i.test(String(s.color||''))?s.color:palette[2];
+      const name=escapeHtml(s.name||'School');
+      const desc=escapeHtml(s.desc||'');
+      const logo=escapeHtml(iconPath(s.logo));
+      const link=escapeHtml(safeLocalLink(s.link));
+      return `<article class="school" style="--accent:${accent};--card-bg:${palette[0]};--level-bg:${palette[1]}"><div class="logo-box"><img src="${logo}" alt="${name} logo" loading="lazy" onerror="this.onerror=null;this.src='/assets/images/dipvtc.png'"></div><h2>${name}</h2><p class="level">${desc}</p><a class="open-link" href="${link}" style="background:${accent}">Explore program</a></article>`;
+    }).join('');
+  }catch(error){
+    console.error('Could not load Programs content:',error);
+    document.getElementById('progTitle').textContent='Our Programs';
+    grid.innerHTML='<p class="empty-state">Programs are temporarily unavailable. Please refresh the page.</p>';
+  }
+}
+loadPrograms();
+</script>
+<script src="/assets/site-footer.js" defer></script>
+<script src="/assets/public-portal-banner.js" defer></script></body>
+</html>
+
+

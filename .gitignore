@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+node_modules/
+server-main/public/
+server-main/local-postgres-data/
+local-postgres-data/
+backups/
+*.dump
+*.backup
+*.log

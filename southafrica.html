@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>South Africa School | DIPVTC</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+body{font-family:'Montserrat',Arial,sans-serif;margin:0;background:#f4f6f9}
+.header{background:#0a1931;color:white;padding:20px;text-align:center}
+.top-nav{background:#fff;padding:12px 20px;display:flex;justify-content:space-between;align-items:center}
+.top-nav a{text-decoration:none;color:#0a1931;font-weight:bold}
+.back-btn{background:#0a1931;color:#fff !important;padding:8px 16px;border-radius:20px}
+.main-logo{width:120px;height:120px;background:white;border-radius:50%;margin:0 auto 15px;display:flex;align-items:center;justify-content:center;overflow:hidden;border:4px solid #ffb81c;box-shadow:0 0 0 4px #007a4d}
+.main-logo img{width:100%;height:100%;object-fit:cover}
+.container{max-width:900px;margin:20px auto;padding:0 15px;display:grid;grid-template-columns:1fr 1fr;gap:15px}
+@media(max-width:700px){.container{grid-template-columns:1fr}}
+.phase{background:#eff8f2;border-radius:12px;padding:18px;box-shadow:0 2px 6px rgba(0,0,0,.1);border-top:5px solid #007a4d;border-left:5px solid #007a4d;border-right:5px solid #007a4d;text-align:center}
+.phase .logo{width:80px;height:80px;margin:0 auto 10px;background:#f4f6f9;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.phase .logo img{width:100%;height:100%;object-fit:cover}
+.phase h3{color:#0a1931;margin:5px 0}
+.phase ul{list-style:none;padding:0;margin:10px 0 0 0;text-align:left;font-size:13px;color:#4b5563;line-height:1.7}
+.phase ul li{background:#f8fafc;padding:5px 8px;margin:4px 0;border-radius:5px;border-left:3px solid #007a4d}
+button,input,select,textarea{font:inherit}
+</style>
+<script>function resolveDIPVTCImage(value){var src=String(value||"").trim();if(!src)return "/assets/images/dipvtc.png";if(/(?:^|\/)zimsec-main\.png$/i.test(src))return "/assets/images/zimsec.png";if(/^(data:|blob:|https?:\/\/|\/)/i.test(src))return src;if(src.indexOf("images/")===0)return "/assets/"+src;if(src.indexOf("assets/")===0)return "/"+src;return "/assets/images/"+src.replace(/^\/+/,"");}</script>
+<link rel="stylesheet" href="/assets/site-footer.css">
+</head>
+<body>
+<div class="top-nav">
+<a href="index.html">DIPVTC</a>
+<a href="programs.html" class="back-btn">Back To Programs</a>
+</div>
+<div class="header">
+<div class="main-logo"><img id="mainLogo" src="/assets/images/southafrica.png"></div>
+<h1>DIPVTC South Africa</h1>
+<p>ECD to Grade 12 | CAPS & IEB | NSC Matric</p>
+</div>
+<div class="container">
+<div class="phase"><div class="logo"><img id="imgEcd" src="/assets/images/ecdsa.png"></div><h3>ECD - Early Childhood</h3><ul><li>Grade RRR (3-4 Years)</li><li>Grade RR (4-5 Years)</li><li>Grade R (5-6 Years)</li></ul></div>
+<div class="phase"><div class="logo"><img id="imgFound" src="/assets/images/foundation.png"></div><h3>Foundation Phase</h3><ul><li>Grade 1</li><li>Grade 2</li><li>Grade 3</li></ul></div>
+<div class="phase"><div class="logo"><img id="imgInter" src="/assets/images/inter.png"></div><h3>Intermediate Phase</h3><ul><li>Grade 4</li><li>Grade 5</li><li>Grade 6</li></ul></div>
+<div class="phase"><div class="logo"><img id="imgSenior" src="/assets/images/senior.png"></div><h3>Senior Phase</h3><ul><li>Grade 7</li><li>Grade 8</li><li>Grade 9 - GETC</li></ul></div>
+<div class="phase" style="border-top-color:#ffb81c;grid-column:span 2"><div class="logo"><img id="imgFet" src="/assets/images/fet.png"></div><h3>FET Phase - Matric</h3><ul style="display:grid;grid-template-columns:1fr 1fr;gap:5px"><li>Grade 10</li><li>Grade 11</li><li>Grade 12 - Matric</li><li>Streams: Science, Commerce, Humanities</li></ul></div>
+</div>
+</div>
+<script>
+try{
+ let schools=JSON.parse(localStorage.getItem('dipvtc_programs_schools')||'[]');
+ let sa=schools.find(s=>s.name.toLowerCase().includes('south'));
+ if(sa && sa.logo) document.getElementById('mainLogo').src=resolveDIPVTCImage(sa.logo);
+ document.getElementById('imgEcd').src=resolveDIPVTCImage(localStorage.getItem('dipvtc_sa_ecd')||'/assets/images/ecdsa.png');
+ document.getElementById('imgFound').src=resolveDIPVTCImage(localStorage.getItem('dipvtc_sa_found')||'/assets/images/foundation.png');
+ document.getElementById('imgInter').src=resolveDIPVTCImage(localStorage.getItem('dipvtc_sa_inter')||'/assets/images/inter.png');
+ document.getElementById('imgSenior').src=resolveDIPVTCImage(localStorage.getItem('dipvtc_sa_senior')||'/assets/images/senior.png');
+ document.getElementById('imgFet').src=resolveDIPVTCImage(localStorage.getItem('dipvtc_sa_fet')||'/assets/images/fet.png');
+}catch(e){}
+</script>
+<script src="/assets/site-footer.js" defer></script>
+<script src="/assets/public-portal-banner.js" defer></script></body>
+</html>
+
+
+
+
+

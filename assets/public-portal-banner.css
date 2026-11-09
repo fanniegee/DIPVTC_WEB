@@ -1,0 +1,84 @@
+.dipvtc-public-portal-banner {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px clamp(14px, 3vw, 38px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: #0a1931;
+  color: #fff;
+  font: 600 12px/1.4 Montserrat, Arial, sans-serif;
+  text-align: center;
+}
+
+.dipvtc-public-portal-banner strong {
+  color: #ffd0ad;
+  font-weight: 800;
+}
+
+.dipvtc-public-portal-banner a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 7px 15px;
+  border: 1px solid #f4a46d;
+  border-radius: 20px;
+  background: #e67e22;
+  color: #fff !important;
+  font: 800 11px/1.2 Montserrat, Arial, sans-serif;
+  text-decoration: none !important;
+  white-space: nowrap;
+}
+
+.dipvtc-public-portal-banner a:hover,
+.dipvtc-public-portal-banner a:focus-visible {
+  background: #f0923e;
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.dipvtc-family-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin: 14px 0 4px;
+}
+
+.dipvtc-family-actions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 10px 18px;
+  border: 1px solid #ef9a5b;
+  border-radius: 24px;
+  background: #e67e22;
+  color: #fff !important;
+  font: 800 12px/1.2 Montserrat, Arial, sans-serif;
+  text-decoration: none !important;
+}
+
+.dipvtc-family-actions a.dipvtc-family-login {
+  border-color: #fff;
+  background: #fff;
+  color: #0a1931 !important;
+}
+
+.dipvtc-family-actions a:hover,
+.dipvtc-family-actions a:focus-visible {
+  filter: brightness(1.07);
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+@media (max-width: 520px) {
+  .dipvtc-public-portal-banner {
+    gap: 7px 10px;
+    padding: 9px 12px;
+  }
+}

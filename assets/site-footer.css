@@ -1,0 +1,6 @@
+.admin-footer{background:#0a1931;color:white;padding:22px 18px 18px;margin-top:20px;font-size:13px}
+.footer-layout{max-width:1400px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,auto) minmax(0,1fr);gap:18px;align-items:center}
+.footer-card{width:min(100%,360px);min-width:0;min-height:190px;padding:18px;border-radius:14px;background:#fff;color:#0a1931;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.footer-card h2{font-size:20px;margin:0 0 14px}.footer-card p{font-size:13px;line-height:1.65;color:#58677c;margin:0}.footer-card a{display:inline-block;margin-top:14px}
+#admission{justify-self:start}#news{justify-self:end}#footerCenter{text-align:center;min-width:320px}
+@media(max-width:800px){.footer-layout{grid-template-columns:1fr;justify-items:center}.footer-card,#admission,#news{justify-self:center;width:min(100%,520px)}#footerCenter{min-width:0;width:100%;grid-row:2}.footer-card:first-child{grid-row:1}.footer-card:last-child{grid-row:3}}
