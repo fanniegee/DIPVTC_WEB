@@ -13,7 +13,7 @@ The root website files are the source. `npm run build:site` copies them into `se
 
 Passwords are hashed with scrypt and are never stored in browser storage. The session is stored server-side and the browser receives an HTTP-only, same-site cookie.
 
-Owner invitations send a one-time activation email that expires after seven days. Configure SMTP settings in the project .env file first. Staff set their own password from the email invitation and use the shared Staff dashboard. Built-in roles include Principal, Teacher / Tutor / Lecturer, Admissions Officer, Finance / Fees Officer, Content Manager and Front Desk; custom Owner-defined roles enter the shared dashboard with task-only access until permissions are configured.
+Owner invitations send a one-time activation email that expires after seven days. Set EMAIL_TRANSPORT=resend with RESEND_API_KEY, EMAIL_FROM_ADDRESS and EMAIL_FROM_NAME in the Render service environment to send over HTTPS on Render Free. For local use or a later paid Render instance, set EMAIL_TRANSPORT=smtp and use the existing SMTP_* settings. Keep credentials in the local .env or Render environment settings; never commit them. Staff set their own password from the email invitation and use the shared Staff dashboard. Built-in roles include Principal, Teacher / Tutor / Lecturer, Admissions Officer, Finance / Fees Officer, Content Manager and Front Desk; custom Owner-defined roles enter the shared dashboard with task-only access until permissions are configured.
 
 After editing website source files in the root, run `npm run build:site` again.
 

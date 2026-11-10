@@ -240,7 +240,7 @@ app.get("/api/health", async (_req, res) => {
   catch { res.status(503).json({ ok: false, database: "unavailable" }); }
 });
 app.get("/api/config", (_req, res) => res.json({ school: "Double Impact Private College", levels: ["primary", "secondary"], status: "server-backed owner, admin, website content and enquiry workflows enabled" }));
-app.post("/api/admin/email/test", requireRole("owner", "admin"), async (req,res)=>{try{await mailer.sendTestEmail(req.user.email,req.user.display_name);res.json({ok:true,message:`A delivery test was sent to ${req.user.email}.`});}catch(e){if(e.status) return res.status(e.status).json({error:e.message});console.warn("Email delivery test failed:",e.code||"SMTP error");res.status(503).json({error:"The email server could not deliver the test. Check the SMTP host, port, encryption, sender mailbox and password."});}});
+app.post("/api/admin/email/test", requireRole("owner", "admin"), async (req,res)=>{try{await mailer.sendTestEmail(req.user.email,req.user.display_name);res.json({ok:true,message:`A delivery test was sent to ${req.user.email}.`});}catch(e){if(e.status) return res.status(e.status).json({error:e.message});console.warn("Email delivery test failed:",e.code||"email transport error");res.status(503).json({error:"The email server could not deliver the test. Check the selected email transport, its API key or SMTP credentials, and the verified sender address."});}});
 
 app.post("/api/auth/login", async (req, res, next) => {
   try {

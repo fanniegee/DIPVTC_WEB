@@ -1,26 +1,78 @@
 const nodemailer = require("nodemailer");
 
+const RESEND_API_URL = "https://api.resend.com";
+
 function configuration() {
+  const transport = String(process.env.EMAIL_TRANSPORT || "smtp").trim().toLowerCase();
+  const fromAddress = String(process.env.EMAIL_FROM_ADDRESS || process.env.SMTP_FROM_ADDRESS || process.env.SMTP_USER || "").trim();
+  const fromName = String(process.env.EMAIL_FROM_NAME || process.env.SMTP_FROM_NAME || "Double Impact Private College").trim();
+  if (!["smtp", "resend"].includes(transport)) throw Object.assign(new Error("EMAIL_TRANSPORT must be smtp or resend."), { status: 503, code: "EMAIL_TRANSPORT_INVALID" });
+  if (!fromAddress) throw Object.assign(new Error(transport === "resend" ? "Set EMAIL_FROM_ADDRESS in the service environment." : "Set SMTP_HOST and SMTP_FROM_ADDRESS in the project .env file."), { status: 503, code: "EMAIL_FROM_MISSING" });
+
+  if (transport === "resend") {
+    const apiKey = String(process.env.RESEND_API_KEY || "").trim();
+    if (!apiKey) throw Object.assign(new Error("RESEND_API_KEY is missing from the service environment."), { status: 503, code: "EMAIL_API_KEY_MISSING" });
+    return { transport, apiKey, fromAddress, fromName };
+  }
+
   const host = String(process.env.SMTP_HOST || "").trim();
-  const fromAddress = String(process.env.SMTP_FROM_ADDRESS || process.env.SMTP_USER || "").trim();
-  if (!host || !fromAddress) throw Object.assign(new Error("Email delivery is not configured. Set SMTP_HOST and SMTP_FROM_ADDRESS in the project .env file."), { status: 503 });
+  if (!host) throw Object.assign(new Error("Set SMTP_HOST in the project .env file."), { status: 503, code: "SMTP_HOST_MISSING" });
   const port = Number(process.env.SMTP_PORT || 587);
-  if (!Number.isInteger(port) || port < 1 || port > 65535) throw Object.assign(new Error("SMTP_PORT must be a valid port number."), { status: 503 });
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw Object.assign(new Error("SMTP_PORT must be a valid port number."), { status: 503, code: "SMTP_PORT_INVALID" });
   const options = { host, port, secure: String(process.env.SMTP_SECURE || "false").toLowerCase() === "true", requireTLS: String(process.env.SMTP_REQUIRE_TLS || "true").toLowerCase() === "true", connectionTimeout: 15000, greetingTimeout: 12000, socketTimeout: 20000 };
   if (process.env.SMTP_USER) options.auth = { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS || "" };
-  if (options.auth && !options.auth.pass) throw Object.assign(new Error("SMTP_PASS is missing from the project .env file."), { status: 503 });
-  return { options, fromAddress, fromName: String(process.env.SMTP_FROM_NAME || "Double Impact Private College").trim() };
+  if (options.auth && !options.auth.pass) throw Object.assign(new Error("SMTP_PASS is missing from the project .env file."), { status: 503, code: "SMTP_PASSWORD_MISSING" });
+  return { transport, options, fromAddress, fromName };
+}
+
+async function apiRequest(config, path, options = {}) {
+  let response;
+  try {
+    response = await fetch(RESEND_API_URL + path, {
+      ...options,
+      signal: AbortSignal.timeout(15000),
+      headers: { Authorization: "Bearer " + config.apiKey, ...(options.headers || {}) }
+    });
+  } catch (error) {
+    const timeout = error && error.name === "TimeoutError";
+    throw Object.assign(new Error(timeout ? "The email API timed out. Try again shortly." : "The email API could not be reached over HTTPS."), { status: 503, code: timeout ? "EMAIL_API_TIMEOUT" : "EMAIL_API_NETWORK" });
+  }
+  if (!response.ok) throw Object.assign(new Error("The email API rejected the request (HTTP " + response.status + "). Check the API key, verified sender and recipient settings."), { status: 503, code: "EMAIL_API_HTTP_" + response.status });
+  if (response.status === 204) return {};
+  try { return await response.json(); }
+  catch { throw Object.assign(new Error("The email API returned an unreadable response."), { status: 503, code: "EMAIL_API_BAD_RESPONSE" }); }
 }
 
 function createTransport() {
   const config = configuration();
+  if (config.transport === "resend") {
+    const fromName = config.fromName.replace(/["\\]/g, "");
+    const transporter = {
+      verify: async function() { await apiRequest(config, "/domains"); },
+      sendMail: async function(message) {
+        const result = await apiRequest(config, "/emails", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            from: fromName + " <" + config.fromAddress + ">",
+            to: Array.isArray(message.to) ? message.to : [message.to],
+            subject: message.subject,
+            text: message.text,
+            html: message.html
+          })
+        });
+        return { messageId: result.id || null };
+      },
+      close: function() {}
+    };
+    return { transporter, from: fromName + " <" + config.fromAddress + ">" };
+  }
   return { transporter: nodemailer.createTransport(config.options), from: { name: config.fromName, address: config.fromAddress } };
 }
 
 function escapeHtml(value) {
   return String(value || "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
 }
-
 async function verify() {
   const { transporter } = createTransport();
   try { await transporter.verify(); return { ok: true }; }
@@ -48,8 +100,8 @@ async function sendTestEmail(to, name) {
   try {
     const info = await transporter.sendMail({
       from, to, subject: "DIPVTC website email delivery test",
-      text: `Hello ${name || "DIPVTC Owner"},\n\nThis confirms the DIPVTC website can send email through its configured school mail server.\n\nDouble Impact Private College`,
-      html: `<div style="font-family:Arial,sans-serif;color:#172b49;max-width:600px;margin:20px auto;padding:24px;border:1px solid #e1e8f1;border-radius:14px"><div style="color:#e67e22;font-weight:bold">DOUBLE IMPACT PRIVATE COLLEGE</div><h2 style="color:#0a1931">Email delivery is connected</h2><p>Hello ${escapeHtml(name || "DIPVTC Owner")},</p><p>This confirms that the website sent a message through the configured school mail server.</p></div>`
+      text: `Hello ${name || "DIPVTC Owner"},\n\nThis confirms the DIPVTC website can send email through its configured email service.\n\nDouble Impact Private College`,
+      html: `<div style="font-family:Arial,sans-serif;color:#172b49;max-width:600px;margin:20px auto;padding:24px;border:1px solid #e1e8f1;border-radius:14px"><div style="color:#e67e22;font-weight:bold">DOUBLE IMPACT PRIVATE COLLEGE</div><h2 style="color:#0a1931">Email delivery is connected</h2><p>Hello ${escapeHtml(name || "DIPVTC Owner")},</p><p>This confirms that the website sent a message through the configured email service.</p></div>`
     });
     return { messageId: info.messageId };
   } finally { transporter.close(); }
