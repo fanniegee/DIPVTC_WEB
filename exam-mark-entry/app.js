@@ -1,6 +1,7 @@
 (() => {
   const $ = s => document.querySelector(s);
   const calc = window.DIPvtCCalculations;
+  const storage = window.dipvtcStore || localStorage;
   const KEY = "dipvtc_marking_engine_v1";
   const defaultData = {
     school:"Double Impact Private College", schoolAddress:"No. 41a Murray Street, Brits, North West, South Africa", schoolEmail:"dipccollege@gmail.com", schoolPhone:"+27651563123 / +27649122788", schoolWebsite:"", year:"2026", term:"Term 2", level:"primary",
@@ -11,8 +12,8 @@
   let currentView = "dashboard";
   let editingStudentId = null;
   let reportTargetId = null;
-  function load(){try{const d=JSON.parse(localStorage.getItem(KEY)||"{}");return {...defaultData,...d,fees:d.fees||{},openingDates:d.openingDates||{},attendance:d.attendance||[],reportComments:d.reportComments||{}}}catch{return structuredClone(defaultData)}}
-  function save(){localStorage.setItem(KEY,JSON.stringify(data));}
+  function load(){try{const d=JSON.parse(storage.getItem(KEY)||"{}");return {...defaultData,...d,fees:d.fees||{},openingDates:d.openingDates||{},attendance:d.attendance||[],reportComments:d.reportComments||{}}}catch{return structuredClone(defaultData)}}
+  function save(){storage.setItem(KEY,JSON.stringify(data));}
   function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
   function setView(v){currentView=v;document.querySelectorAll(".nav").forEach(b=>b.classList.toggle("active",b.dataset.view===v));render();}
   document.querySelectorAll(".nav").forEach(b=>b.addEventListener("click",()=>setView(b.dataset.view)));
