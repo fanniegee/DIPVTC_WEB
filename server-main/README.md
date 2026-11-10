@@ -41,3 +41,6 @@ The `dipvtc_enquiries` compatibility list is synchronized with `website_enquirie
 The server and browser file origins have separate storage. Existing values from the old `file://` or hosted website are not automatically copied to localhost. Use sample records for the first localhost test; a reviewed export/import migration is needed before moving existing live records. The remaining site pages still use their current browser storage and will be migrated in later steps.
 
 The first test phase is for localhost. Before public deployment, configure HTTPS and production cookie settings, review backup/restore, and complete the remaining website modules.
+
+
+Owner and Admin can open a read-only Staff dashboard preview and, from each learner record, read-only Student and Parent portal previews. Portal previews require a management session and do not grant or change family-account access.
