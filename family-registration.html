@@ -29,6 +29,7 @@
         <div class="field"><label for="guardianName">Parent / guardian name (optional)</label><input id="guardianName" name="guardianName" autocomplete="name" maxlength="180"></div>
         <div class="field"><label for="guardianEmail">Parent / guardian email (optional)</label><input id="guardianEmail" name="guardianEmail" type="email" autocomplete="email" maxlength="254"></div>
         <div class="field"><label for="guardianPhone">Parent / guardian phone (optional)</label><input id="guardianPhone" name="guardianPhone" autocomplete="tel" maxlength="40"></div>
+        <div id="studentHealthInfo" class="field full"></div>
         <div class="field full"><label for="notes">Anything Admissions should know? (optional)</label><textarea id="notes" name="notes" rows="4" maxlength="1500" placeholder="Learning needs, experience, or a good time to contact the family"></textarea></div>
         <div aria-hidden="true" style="position:absolute;left:-10000px"><label for="website">Leave this field empty</label><input id="website" name="website" tabindex="-1" autocomplete="off"></div>
       </div>
@@ -37,17 +38,20 @@
     </form>
     <div class="back"><a href="/admission.html">Review admissions information</a> · <a href="/">Return to home</a></div>
   </section></main>
+  <script src="/assets/student-health-form.js"></script>
   <script>
+    const healthForm=window.DIPVTCHealthForm.mount(document.getElementById("studentHealthInfo"));
     const form=document.getElementById('registrationForm'),schoolSelect=document.getElementById('schoolCode'),classSelect=document.getElementById('className');let schools=[];
     fetch('/api/public/admission-options').then(r=>r.json()).then(data=>{schools=data.schools||[];schoolSelect.replaceChildren(new Option('Choose a school',''),...schools.map(s=>new Option(s.name,s.code)));schoolSelect.addEventListener('change',()=>{const s=schools.find(x=>x.code===schoolSelect.value);classSelect.replaceChildren(new Option('Choose a class / course',''),...(s?.classes||[]).map(c=>new Option(c.name,c.name)));classSelect.disabled=!s})}).catch(()=>{schoolSelect.replaceChildren(new Option('School choices could not be loaded',''))});
     form.addEventListener('submit',async event=>{
       event.preventDefault();
       const button=document.getElementById('submitButton'),status=document.getElementById('status');
       if(document.getElementById('password').value!==document.getElementById('confirmPassword').value){status.textContent='The passwords do not match.';return}
+      if(!healthForm.validate())return;
       button.disabled=true;status.textContent='Sending your request…';
       const fields=['guardianName','guardianEmail','guardianPhone','studentName','studentEmail','password','schoolCode','className','dateOfBirth','notes','website'];
-      const body=Object.fromEntries(fields.map(id=>[id,document.getElementById(id).value.trim()]));
-      try{const response=await fetch('/api/student-registrations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const result=await response.json();if(!response.ok)throw new Error(result.error||'The application could not be submitted.');form.reset();classSelect.disabled=true;classSelect.replaceChildren(new Option('Choose a school first',''));schoolSelect.replaceChildren(new Option('Choose a school',''),...schools.map(s=>new Option(s.name,s.code)));status.textContent='Application submitted. The student account is waiting for Admissions approval. Once approved, the student can sign in with the email and password created here.'+(result.emailSent?' A receipt was emailed to the student.':' The application is saved; the email receipt could not be sent.')}
+      const body=Object.assign(Object.fromEntries(fields.map(id=>[id,document.getElementById(id).value.trim()])),healthForm.values());
+      try{const response=await fetch('/api/student-registrations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const result=await response.json();if(!response.ok)throw new Error(result.error||'The application could not be submitted.');form.reset();healthForm.reset();classSelect.disabled=true;classSelect.replaceChildren(new Option('Choose a school first',''));schoolSelect.replaceChildren(new Option('Choose a school',''),...schools.map(s=>new Option(s.name,s.code)));status.textContent='Application submitted. Student number '+(result.studentNumber||'assigned')+'. The student account is waiting for Admissions approval. Once approved, the student can sign in with the email and password created here.'+(result.emailSent?' A receipt was emailed to the student.':' The application is saved; the email receipt could not be sent.')}
       catch(error){status.textContent=error.message||'The request could not be sent. Please try again or contact Admissions.'}
       finally{button.disabled=false}
     });

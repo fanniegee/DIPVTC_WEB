@@ -7,7 +7,7 @@ The root website files are the source. `npm run build:site` copies them into `se
 1. Install Node.js 20 or newer and PostgreSQL.
 2. Create a PostgreSQL database named `dipvtc` (or choose another name).
 3. Copy `.env.example` to `.env`. Set `DATABASE_URL` to the local database and enter an owner email and a private password of at least 10 characters in `INITIAL_OWNER_EMAIL`, `INITIAL_OWNER_NAME` and `INITIAL_OWNER_PASSWORD`. Optionally configure an administrator account with the `INITIAL_ADMIN_*` fields.
-4. Apply `database/001_initial_academic_schema.sql` through `database/005_student_self_registration.sql` in order to that database.
+4. Apply `database/001_initial_academic_schema.sql` through `database/006_student_ids_and_health_information.sql` in order to that database.
 5. Run `npm install`, `npm run build:site`, then `npm start` from the website root.
 6. Open `http://127.0.0.1:3000`. Staff Login leads to the shared staff dashboard. Admin / Owner Login routes each account to its matching dashboard. The Owner page's Main Admin button opens Admin.
 
@@ -29,10 +29,10 @@ The homepage welcome card and each Study Pathway card load image slides only fro
 - Teachers also have a separate read-only Class Results view over the normalized academic tables; the Principal has a school-wide view of those records. Both use the shared marking-calculation module. This is for review, while end-of-term entry is in Exam Mark-Entry. The two sets of records are not yet synchronized.
 - The Finance / Fees Officer can open the existing Fees Audit Engine at `/fees.html` or `/fees.htm`. Its five `di_*` data stores save through the authenticated server storage layer, and the Owner can also access the fee page.
 - `activate.html` validates one-time Owner invitations and creates staff accounts.
-- The public Student Registration page creates a locked student account and an application. Admissions reviews and approves or rejects it. Approval enrolls the learner, activates the same email/password account for the Student Portal, and sends a notice. Parent/guardian details can be included so the parent can be linked or invited after approval.
-- Manual Admissions lets staff enroll campus walk-ins across the six school/program choices. Student email may be omitted for a campus record; that learner has no individual student portal login until a student email and account are added.
+- The public Student Registration page collects student health conditions, allergies and doctor / clinic details when relevant, creates a locked student account and an application, and assigns its sequential student number. Admissions reviews and approves or rejects it. Approval enrolls the learner, activates the same email/password account for the Student Portal, and sends a notice. Parent/guardian details can be included so the parent can be linked or invited after approval.
+- Manual Admissions lets staff enroll campus walk-ins across the six school/program choices. New learner IDs use the next available `DIP-YYYY-NNN` number. Online applicants receive an ID on submission, retained if Admissions approves them. Student email may be omitted for a campus record; that learner has no individual student portal login until a student email and account are added.
 - The compatibility storage layer used by these pages holds a session copy in memory and queues writes to the API; it does not write to browser `localStorage`.
-- Server-side role checks, role-scoped state access, invitation validation, rate limits and audit rows are applied.
+- Student health details are available only in the owner/admin/admissions learner and application screens; they are not included in student or parent portal responses. Server-side role checks, role-scoped state access, invitation validation, rate limits and audit rows are applied.
 
 The `dipvtc_enquiries` compatibility list is synchronized with `website_enquiries`. The original Local Edition files under `assets/DIPvtC-MARK-ENGINE-v4.1.0-local-test-ready` remain unchanged as reference. The server serves a copy under `exam-mark-entry/`, with its storage changed to the authenticated server adapter.
 

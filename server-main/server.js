@@ -134,6 +134,56 @@ async function passwordMatches(password, stored) {
   return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
 }
 function validPassword(value) { return typeof value === "string" && value.length >= 10 && value.length <= 256; }
+const HEALTH_CONDITIONS = new Set(["HIV/AIDS","Cancer","Diabetes","Asthma","Epilepsy / seizures","Sickle cell disease","Heart condition","High blood pressure","Kidney condition","Anaemia","Tuberculosis (TB)","Chronic skin condition","Mental health condition","Physical disability","Vision condition","Hearing condition"]);
+const CHILD_ALLERGIES = new Set(["Peanuts","Tree nuts","Milk / dairy","Eggs","Fish","Shellfish","Wheat / gluten","Soy","Penicillin / antibiotics","Other medicines","Pollen","Dust mites","Mould","Insect stings","Latex","Animal dander"]);
+function parseHealthInformation(body) {
+  const status = String(body.healthConditionStatus || body.health_condition_status || "").trim();
+  if (!["none","has_conditions"].includes(status)) return { error: "Choose whether the learner has a known health condition." };
+  const list = (value, allowed) => {
+    if (!Array.isArray(value)) return [];
+    const values = [...new Set(value.map(x => String(x).trim()))];
+    if (values.some(x => !allowed.has(x))) throw new Error("Choose health information from the provided lists.");
+    return values;
+  };
+  let conditions, allergies;
+  try { conditions = list(body.healthConditions || body.health_conditions, HEALTH_CONDITIONS); allergies = list(body.allergies, CHILD_ALLERGIES); }
+  catch (error) { return { error: error.message }; }
+  const conditionOther = String(body.healthConditionOther || body.health_condition_other || "").trim().slice(0,500);
+  const allergyOther = String(body.allergyOther || body.allergy_other || "").trim().slice(0,500);
+  const allergyValue = body.hasAllergies !== undefined ? body.hasAllergies : body.has_allergies;
+  const hasAllergies = allergyValue === true || allergyValue === "yes";
+  const noAllergies = allergyValue === false || allergyValue === "no";
+  if (!hasAllergies && !noAllergies) return { error: "Choose Yes or No for known allergies." };
+  if (status === "has_conditions" && !conditions.length && !conditionOther) return { error: "Select a known condition or describe another condition." };
+  if (status !== "has_conditions" && (conditions.length || conditionOther)) return { error: "Clear condition details or select that the learner has conditions." };
+  if (hasAllergies && !allergies.length && !allergyOther) return { error: "Select a known allergy or describe another allergy." };
+  if (!hasAllergies && (allergies.length || allergyOther)) return { error: "Clear allergy details or answer Yes to known allergies." };
+  const needsDoctor = status === "has_conditions" || hasAllergies;
+  const doctorName = String(body.doctorName || body.doctor_name || "").trim().slice(0,180);
+  const doctorClinic = String(body.doctorClinic || body.doctor_clinic || "").trim().slice(0,180);
+  const doctorPhone = String(body.doctorPhone || body.doctor_phone || "").trim().slice(0,40);
+  const doctorEmail = String(body.doctorEmail || body.doctor_email || "").trim().toLowerCase().slice(0,254);
+  if (needsDoctor && (!doctorName || !doctorClinic || !doctorPhone)) return { error: "For any reported condition or allergy, provide the doctor’s name, clinic and phone number." };
+  if (doctorEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(doctorEmail)) return { error: "Enter a valid doctor or clinic email address." };
+  return { value: {
+    healthConditionStatus: status, healthConditions: status === "has_conditions" ? conditions : [],
+    healthConditionOther: status === "has_conditions" ? conditionOther : "", hasAllergies,
+    allergies: hasAllergies ? allergies : [], allergyOther: hasAllergies ? allergyOther : "",
+    doctorName: needsDoctor ? doctorName : "", doctorClinic: needsDoctor ? doctorClinic : "",
+    doctorPhone: needsDoctor ? doctorPhone : "", doctorEmail: needsDoctor ? doctorEmail : "",
+    doctorAddress: needsDoctor ? String(body.doctorAddress || body.doctor_address || "").trim().slice(0,500) : "",
+    healthNotes: needsDoctor ? String(body.healthNotes || body.health_notes || "").trim().slice(0,2000) : ""
+  }};
+}
+async function nextStudentNumber(client, schoolYear = new Date().getFullYear()) {
+  const result = await client.query("INSERT INTO student_number_counters(school_year,last_number) VALUES($1,1) ON CONFLICT(school_year) DO UPDATE SET last_number=student_number_counters.last_number+1 RETURNING last_number", [schoolYear]);
+  return "DIP-" + schoolYear + "-" + String(result.rows[0].last_number).padStart(3, "0");
+}
+async function reserveStudentNumber(client, value) {
+  const match = /^DIP-(\d{4})-(\d+)$/.exec(String(value || "").trim());
+  if (!match) return;
+  await client.query("INSERT INTO student_number_counters(school_year,last_number) VALUES($1,$2) ON CONFLICT(school_year) DO UPDATE SET last_number=GREATEST(student_number_counters.last_number,EXCLUDED.last_number)", [Number(match[1]), Number(match[2])]);
+}
 function publicUrl(req, pathname) { const base = String(process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get("host")}`).trim().replace(/\/+$/, ""); return `${base}${pathname}`; }
 
 async function authenticate(req, res, next) {
@@ -275,113 +325,98 @@ app.post("/api/auth/login", async (req, res, next) => {
 });
 
 // Parent and student accounts are provisioned by Admissions/Admin and bound to specific learners.
-app.post("/api/admissions/learners", requireRole("owner", "admin", "admissions"), async (req, res, next) => {
-  const b = req.body || {};
-  const fullName = String(b.fullName || "").trim().slice(0, 180);
-  const className = String(b.className || "").trim().slice(0, 80);
-  const schoolCode = String(b.schoolCode || "zimsec");
-  const school = ADMISSION_SCHOOLS.find(x=>x.code===schoolCode);
-  const classChoice = school?.classes.find(x=>x.name===className);
-  const submittedLevel = String(b.level || "").toLowerCase();
-  const level = classChoice ? classChoice.academicLevel : (["primary","secondary"].includes(submittedLevel)?submittedLevel:null);
-  const guardianName = String(b.guardianName || "").trim().slice(0, 180);
-  const guardianEmail = String(b.guardianEmail || "").trim().toLowerCase();
-  const studentEmail = String(b.studentEmail || "").trim().toLowerCase();
-  if (fullName.length < 2 || !school || !className || !guardianName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guardianEmail)) return res.status(400).json({ error: "Enter the learner name, school, intended class, guardian name and valid guardian email." });
-  if (studentEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(studentEmail)) return res.status(400).json({ error: "Enter a valid student email or leave it blank." });
-  const client = await pool.connect();
-  try {
+app.post("/api/admissions/learners", requireRole("owner","admin","admissions"), async(req,res,next)=>{
+  const b=req.body||{},fullName=String(b.fullName||"").trim().slice(0,180),className=String(b.className||"").trim().slice(0,80),schoolCode=String(b.schoolCode||"zimsec"),school=ADMISSION_SCHOOLS.find(x=>x.code===schoolCode),classChoice=school?.classes.find(x=>x.name===className),level=classChoice?classChoice.academicLevel:(["primary","secondary"].includes(String(b.level||"").toLowerCase())?String(b.level).toLowerCase():null),guardianName=String(b.guardianName||"").trim().slice(0,180),guardianEmail=String(b.guardianEmail||"").trim().toLowerCase(),studentEmail=String(b.studentEmail||"").trim().toLowerCase();
+  if(fullName.length<2||!school||!className||!guardianName||!(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guardianEmail)))return res.status(400).json({error:"Enter the learner name, school, intended class, guardian name and valid guardian email."});
+  if(studentEmail&&!(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(studentEmail)))return res.status(400).json({error:"Enter a valid student email or leave it blank."});
+  if(studentEmail&&studentEmail===guardianEmail)return res.status(400).json({error:"Use separate email addresses for parent and student portal accounts."});
+  const parsedHealth=parseHealthInformation(b);if(parsedHealth.error)return res.status(400).json({error:parsedHealth.error});const h=parsedHealth.value;
+  const client=await pool.connect();
+  try{
     await client.query("BEGIN");
-    const rosterClass = `${schoolCode} · ${className}`.slice(0,80);
-    const cls = level ? await client.query("INSERT INTO classes(level,name) VALUES($1,$2) ON CONFLICT(level,name) DO UPDATE SET name=EXCLUDED.name RETURNING id", [level, rosterClass]) : null;
-    const number = String(b.studentNumber || `DIP-${new Date().getFullYear()}-${crypto.randomBytes(3).toString("hex").toUpperCase()}`).trim().slice(0, 50);
-    const learner = await client.query("INSERT INTO students(student_number,full_name,class_id) VALUES($1,$2,$3) RETURNING id,student_number,full_name", [number, fullName, cls?.rows[0]?.id||null]);
-    await client.query(`INSERT INTO learner_profiles(student_id,date_of_birth,gender,address,guardian_name,guardian_email,guardian_phone,student_email,school_code,intended_class,updated_by)
-      VALUES($1,NULLIF($2,'')::date,$3,$4,$5,$6,$7,$8,$9,$10,$11)`, [learner.rows[0].id, String(b.dateOfBirth || ""), String(b.gender || "").slice(0,40), String(b.address || "").slice(0,2000), guardianName, guardianEmail, String(b.guardianPhone || "").slice(0,40), studentEmail, schoolCode,className,req.user.id]);
-    const links = [];
-    for (const target of [{email:guardianEmail,name:guardianName,role:"parent"}, ...(studentEmail && studentEmail !== guardianEmail ? [{email:studentEmail,name:fullName,role:"student"}] : [])]) {
-      const existing = await client.query("SELECT id,role FROM app_users WHERE email=$1", [target.email]);
-      if (existing.rows[0]) {
-        if (existing.rows[0].role !== target.role) throw Object.assign(new Error(`The email ${target.email} already belongs to another account type.`), {status:409});
-        await client.query("INSERT INTO portal_student_access(user_id,student_id,relationship) VALUES($1,$2,$3) ON CONFLICT DO NOTHING", [existing.rows[0].id, learner.rows[0].id, target.role === "parent" ? "Parent / Guardian" : "Student"]);
-        continue;
-      }
-      const pending=await client.query("SELECT id FROM portal_invites WHERE LOWER(email)=$1 AND role=$2 AND accepted_at IS NULL AND expires_at>NOW() FOR UPDATE",[target.email,target.role]);
-      const token=crypto.randomBytes(32).toString("base64url"), hash=crypto.createHash("sha256").update(token).digest("hex");let invite;
-      if(pending.rowCount)invite=await client.query("UPDATE portal_invites SET token_hash=$2,display_name=$3,invited_by=$4,expires_at=NOW()+INTERVAL '7 days' WHERE id=$1 RETURNING id,expires_at",[pending.rows[0].id,hash,target.name,req.user.id]);
-      else invite=await client.query("INSERT INTO portal_invites(email,display_name,role,token_hash,invited_by,expires_at) VALUES($1,$2,$3,$4,$5,NOW()+INTERVAL '7 days') RETURNING id,expires_at",[target.email,target.name,target.role,hash,req.user.id]);
-      await client.query("INSERT INTO portal_invite_students(invite_id,student_id,relationship) VALUES($1,$2,$3) ON CONFLICT DO NOTHING",[invite.rows[0].id,learner.rows[0].id,target.role === "parent" ? "Parent / Guardian" : "Student"]);
-      links.push({role:target.role,email:target.email,name:target.name,expiresAt:invite.rows[0].expires_at,token});
+    const clsName=(schoolCode+" · "+className).slice(0,80),cls=level?await client.query("INSERT INTO classes(level,name) VALUES($1,$2) ON CONFLICT(level,name) DO UPDATE SET name=EXCLUDED.name RETURNING id",[level,clsName]):null;
+    const supplied=String(b.studentNumber||"").trim().slice(0,50),number=supplied||await nextStudentNumber(client);if(supplied)await reserveStudentNumber(client,supplied);
+    const learner=await client.query("INSERT INTO students(student_number,full_name,class_id) VALUES($1,$2,$3) RETURNING id,student_number,full_name",[number,fullName,cls?.rows[0]?.id||null]);
+    await client.query("INSERT INTO learner_profiles(student_id,date_of_birth,gender,address,guardian_name,guardian_email,guardian_phone,student_email,school_code,intended_class,updated_by,health_condition_status,health_conditions,health_condition_other,has_allergies,allergies,allergy_other,doctor_name,doctor_clinic,doctor_phone,doctor_email,doctor_address,health_notes) VALUES($1,NULLIF($2,'')::date,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)",
+      [learner.rows[0].id,String(b.dateOfBirth||""),String(b.gender||"").slice(0,40),String(b.address||"").slice(0,2000),guardianName,guardianEmail,String(b.guardianPhone||"").slice(0,40),studentEmail,schoolCode,className,req.user.id,h.healthConditionStatus,h.healthConditions,h.healthConditionOther,h.hasAllergies,h.allergies,h.allergyOther,h.doctorName,h.doctorClinic,h.doctorPhone,h.doctorEmail,h.doctorAddress,h.healthNotes]);
+    const links=[],targets=[{email:guardianEmail,name:guardianName,role:"parent"}].concat(studentEmail?[{email:studentEmail,name:fullName,role:"student"}]:[]);
+    for(const t of targets){
+      const existing=await client.query("SELECT id,role FROM app_users WHERE LOWER(email)=LOWER($1)",[t.email]);
+      if(existing.rowCount){if(existing.rows[0].role!==t.role)throw Object.assign(new Error("The email "+t.email+" already belongs to another account type."),{status:409});await client.query("INSERT INTO portal_student_access(user_id,student_id,relationship) VALUES($1,$2,$3) ON CONFLICT DO NOTHING",[existing.rows[0].id,learner.rows[0].id,t.role==="parent"?"Parent / Guardian":"Student"]);continue;}
+      const pending=await client.query("SELECT id FROM portal_invites WHERE LOWER(email)=LOWER($1) AND role=$2 AND accepted_at IS NULL AND expires_at>NOW() FOR UPDATE",[t.email,t.role]),token=crypto.randomBytes(32).toString("base64url"),hash=crypto.createHash("sha256").update(token).digest("hex");
+      let inv;if(pending.rowCount)inv=await client.query("UPDATE portal_invites SET token_hash=$2,display_name=$3,invited_by=$4,expires_at=NOW()+INTERVAL '7 days' WHERE id=$1 RETURNING id,expires_at",[pending.rows[0].id,hash,t.name,req.user.id]);else inv=await client.query("INSERT INTO portal_invites(email,display_name,role,token_hash,invited_by,expires_at) VALUES($1,$2,$3,$4,$5,NOW()+INTERVAL '7 days') RETURNING id,expires_at",[t.email,t.name,t.role,hash,req.user.id]);
+      await client.query("INSERT INTO portal_invite_students(invite_id,student_id,relationship) VALUES($1,$2,$3) ON CONFLICT DO NOTHING",[inv.rows[0].id,learner.rows[0].id,t.role==="parent"?"Parent / Guardian":"Student"]);links.push({role:t.role,email:t.email,name:t.name,expiresAt:inv.rows[0].expires_at,token});
     }
-    await client.query("INSERT INTO app_audit_log(user_id,action,target_key) VALUES($1,'learner-registration',$2)",[req.user.id,number]);
-    await client.query("COMMIT");
-    const emailDelivery=[];for(const item of links){try{await mailer.sendAccountEmail({to:item.email,name:item.name,role:item.role,kind:"activation",expiresAt:item.expiresAt,url:publicUrl(req,`/portal-register.html?token=${encodeURIComponent(item.token)}`)});emailDelivery.push({email:item.email,role:item.role,sent:true});}catch(mailError){console.warn("Portal activation email failed:",mailError.code||"SMTP error");emailDelivery.push({email:item.email,role:item.role,sent:false});}}
-    res.status(201).json({learner:learner.rows[0],emailDelivery,studentAccountSkipped:!!studentEmail && studentEmail===guardianEmail});
-  } catch(error) { await client.query("ROLLBACK").catch(()=>{}); next(error); } finally { client.release(); }
+    await client.query("INSERT INTO app_audit_log(user_id,action,target_key) VALUES($1,'learner-registration',$2)",[req.user.id,number]);await client.query("COMMIT");
+    const emailDelivery=[];for(const t of links){try{await mailer.sendAccountEmail({to:t.email,name:t.name,role:t.role,kind:"activation",expiresAt:t.expiresAt,url:publicUrl(req,"/portal-register.html?token="+encodeURIComponent(t.token))});emailDelivery.push({email:t.email,role:t.role,sent:true});}catch(e){console.warn("Portal activation email failed:",e.code||"email transport error");emailDelivery.push({email:t.email,role:t.role,sent:false});}}
+    res.status(201).json({learner:learner.rows[0],emailDelivery,studentAccountSkipped:!!studentEmail&&studentEmail===guardianEmail});
+  }catch(e){await client.query("ROLLBACK").catch(()=>{});next(e);}finally{client.release();}
 });
 
-app.get("/api/admissions/learners", requireRole("owner", "admin", "admissions"), async (_req,res,next)=>{
-  try { const r=await pool.query(`SELECT s.id,s.student_number,s.full_name,s.active,c.level,c.name AS class_name,p.school_code,p.intended_class,p.date_of_birth,p.gender,p.address,p.guardian_name,p.guardian_email,p.guardian_phone,p.student_email
-    FROM students s LEFT JOIN classes c ON c.id=s.class_id LEFT JOIN learner_profiles p ON p.student_id=s.id ORDER BY s.created_at DESC`);
-    res.setHeader("Cache-Control","no-store"); res.json({learners:r.rows}); } catch(e){next(e);}
+app.get("/api/admissions/learners",requireRole("owner","admin","admissions"),async(_req,res,next)=>{
+  try{const r=await pool.query("SELECT s.id,s.student_number,s.full_name,s.active,c.level,c.name AS class_name,p.school_code,p.intended_class,p.date_of_birth,p.gender,p.address,p.guardian_name,p.guardian_email,p.guardian_phone,p.student_email,p.health_condition_status,p.health_conditions,p.health_condition_other,p.has_allergies,p.allergies,p.allergy_other,p.doctor_name,p.doctor_clinic,p.doctor_phone,p.doctor_email,p.doctor_address,p.health_notes FROM students s LEFT JOIN classes c ON c.id=s.class_id LEFT JOIN learner_profiles p ON p.student_id=s.id ORDER BY s.created_at DESC");res.setHeader("Cache-Control","no-store");res.json({learners:r.rows});}catch(e){next(e);}
 });
-app.get("/api/admissions/registration-requests", requireRole("owner", "admin", "admissions"), async (_req,res,next)=>{
-  try { const r=await pool.query("SELECT id,student_name,student_email,school_code,intended_class,academic_level,date_of_birth,guardian_name,guardian_email,guardian_phone,notes,status,submitted_at FROM student_registration_requests WHERE status IN ('pending','in_review') ORDER BY submitted_at DESC");
-    const requests=r.rows.map(x=>({...x,school_name:ADMISSION_SCHOOLS.find(s=>s.code===x.school_code)?.name||x.school_code}));
-    res.setHeader("Cache-Control","no-store"); res.json({requests}); } catch(e){next(e);}
+
+app.get("/api/admissions/registration-requests",requireRole("owner","admin","admissions"),async(_req,res,next)=>{
+  try{const r=await pool.query("SELECT id,student_number,student_name,student_email,school_code,intended_class,academic_level,date_of_birth,guardian_name,guardian_email,guardian_phone,notes,status,submitted_at,health_condition_status,health_conditions,health_condition_other,has_allergies,allergies,allergy_other,doctor_name,doctor_clinic,doctor_phone,doctor_email,doctor_address,health_notes FROM student_registration_requests WHERE status IN ('pending','in_review') ORDER BY submitted_at DESC");const requests=r.rows.map(x=>({...x,school_name:ADMISSION_SCHOOLS.find(s=>s.code===x.school_code)?.name||x.school_code}));res.setHeader("Cache-Control","no-store");res.json({requests});}catch(e){next(e);}
 });
-app.put("/api/admissions/registration-requests/:id", requireRole("owner", "admin", "admissions"), async (req,res,next)=>{
-  const id=String(req.params.id||""),status=String(req.body?.status||"");
-  if(!/^[0-9a-f-]{36}$/i.test(id)||!["pending","in_review","rejected"].includes(status)) return res.status(400).json({error:"Invalid registration request update."});
-  try { const r=await pool.query("UPDATE student_registration_requests SET status=$2,reviewed_by=$3,reviewed_at=NOW() WHERE id=$1 AND status IN ('pending','in_review') RETURNING id,status,student_name,student_email,school_code,intended_class",[id,status,req.user.id]);
-    if(!r.rowCount) return res.status(404).json({error:"This request was already handled or could not be found."});
-    if(status==="rejected") await pool.query("UPDATE app_users SET active=FALSE WHERE id=(SELECT student_user_id FROM student_registration_requests WHERE id=$1)",[id]);
-    await pool.query("INSERT INTO app_audit_log(user_id,action,target_key) VALUES($1,'public-registration-request-update',$2)",[req.user.id,id]);
-    let emailSent=false;if(status==="rejected"){try{const school=ADMISSION_SCHOOLS.find(s=>s.code===r.rows[0].school_code);await mailer.sendRegistrationStatus({to:r.rows[0].student_email,name:r.rows[0].student_name,status:"rejected",school:school?.name,intendedClass:r.rows[0].intended_class});emailSent=true;}catch(error){console.warn("Student rejection notice failed:",error.code||"SMTP error");}}
-    res.json({request:r.rows[0],emailSent}); } catch(e){next(e);}
+
+app.put("/api/admissions/registration-requests/:id",requireRole("owner","admin","admissions"),async(req,res,next)=>{
+  const id=String(req.params.id||""),status=String(req.body?.status||"");if(!/^[0-9a-f-]{36}$/i.test(id)||!["pending","in_review","rejected"].includes(status))return res.status(400).json({error:"Invalid registration request update."});
+  try{const r=await pool.query("UPDATE student_registration_requests SET status=$2,reviewed_by=$3,reviewed_at=NOW() WHERE id=$1 AND status IN ('pending','in_review') RETURNING id,status,student_name,student_email,school_code,intended_class",[id,status,req.user.id]);if(!r.rowCount)return res.status(404).json({error:"This request was already handled or could not be found."});if(status==="rejected")await pool.query("UPDATE app_users SET active=FALSE WHERE id=(SELECT student_user_id FROM student_registration_requests WHERE id=$1)",[id]);await pool.query("INSERT INTO app_audit_log(user_id,action,target_key) VALUES($1,'public-registration-request-update',$2)",[req.user.id,r.rows[0].student_email]);let emailSent=false;if(status==="rejected"){try{const school=ADMISSION_SCHOOLS.find(s=>s.code===r.rows[0].school_code);await mailer.sendRegistrationStatus({to:r.rows[0].student_email,name:r.rows[0].student_name,status:"rejected",school:school?.name,intendedClass:r.rows[0].intended_class,studentNumber:r.rows[0].student_number});emailSent=true;}catch(e){console.warn("Student rejection notice failed:",e.code||"email transport error");}}res.json({request:r.rows[0],emailSent});}catch(e){next(e);}
 });
+
 app.post("/api/admissions/registration-requests/:id/approve",requireRole("owner","admin","admissions"),async(req,res,next)=>{
   const id=String(req.params.id||"");if(!/^[0-9a-f-]{36}$/i.test(id))return res.status(400).json({error:"Invalid registration request."});
   const client=await pool.connect();let parentInvite=null,studentEmail="",studentName="",schoolName="";
   try{
     await client.query("BEGIN");
-    const q=await client.query(`SELECT r.*,u.id AS account_id,u.email AS account_email FROM student_registration_requests r JOIN app_users u ON u.id=r.student_user_id WHERE r.id=$1 AND r.status IN ('pending','in_review') FOR UPDATE OF r,u`,[id]);
+    const q=await client.query("SELECT r.*,u.id AS account_id,u.email AS account_email FROM student_registration_requests r JOIN app_users u ON u.id=r.student_user_id WHERE r.id=$1 AND r.status IN ('pending','in_review') FOR UPDATE OF r,u",[id]);
     if(!q.rowCount)throw Object.assign(new Error("This request was already handled or could not be found."),{status:404});
     const r=q.rows[0];studentEmail=r.student_email;studentName=r.student_name;schoolName=ADMISSION_SCHOOLS.find(s=>s.code===r.school_code)?.name||r.school_code;
-    let classId=null;
-    if(r.academic_level){const rosterClass=`${r.school_code} · ${r.intended_class}`.slice(0,80);const cls=await client.query("INSERT INTO classes(level,name) VALUES($1,$2) ON CONFLICT(level,name) DO UPDATE SET name=EXCLUDED.name RETURNING id",[r.academic_level,rosterClass]);classId=cls.rows[0].id;}
-    const studentNumber=`DIP-${new Date().getFullYear()}-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
+    let classId=null;if(r.academic_level){const rosterClass=(r.school_code+" · "+r.intended_class).slice(0,80);const cls=await client.query("INSERT INTO classes(level,name) VALUES($1,$2) ON CONFLICT(level,name) DO UPDATE SET name=EXCLUDED.name RETURNING id",[r.academic_level,rosterClass]);classId=cls.rows[0].id;}
+    const studentNumber=r.student_number||await nextStudentNumber(client);
     const student=await client.query("INSERT INTO students(student_number,full_name,class_id) VALUES($1,$2,$3) RETURNING id,student_number,full_name",[studentNumber,r.student_name,classId]);
-    await client.query(`INSERT INTO learner_profiles(student_id,date_of_birth,guardian_name,guardian_email,guardian_phone,student_email,school_code,intended_class,updated_by)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,[student.rows[0].id,r.date_of_birth,r.guardian_name,r.guardian_email,r.guardian_phone,r.student_email,r.school_code,r.intended_class,req.user.id]);
+    await client.query("INSERT INTO learner_profiles(student_id,date_of_birth,guardian_name,guardian_email,guardian_phone,student_email,school_code,intended_class,updated_by,health_condition_status,health_conditions,health_condition_other,has_allergies,allergies,allergy_other,doctor_name,doctor_clinic,doctor_phone,doctor_email,doctor_address,health_notes) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)",
+      [student.rows[0].id,r.date_of_birth,r.guardian_name,r.guardian_email,r.guardian_phone,r.student_email,r.school_code,r.intended_class,req.user.id,r.health_condition_status,r.health_conditions,r.health_condition_other,r.has_allergies,r.allergies,r.allergy_other,r.doctor_name,r.doctor_clinic,r.doctor_phone,r.doctor_email,r.doctor_address,r.health_notes]);
     await client.query("INSERT INTO portal_student_access(user_id,student_id,relationship) VALUES($1,$2,'Student') ON CONFLICT DO NOTHING",[r.student_user_id,student.rows[0].id]);
     await client.query("UPDATE app_users SET active=TRUE,display_name=$2,updated_at=NOW() WHERE id=$1",[r.student_user_id,r.student_name]);
     if(r.guardian_email){
       const parent=await client.query("SELECT id,role FROM app_users WHERE LOWER(email)=LOWER($1)",[r.guardian_email]);
-      if(parent.rows[0]?.role==="parent") await client.query("INSERT INTO portal_student_access(user_id,student_id,relationship) VALUES($1,$2,'Parent / Guardian') ON CONFLICT DO NOTHING",[parent.rows[0].id,student.rows[0].id]);
-      else if(!parent.rowCount){const token=crypto.randomBytes(32).toString("base64url"),tokenHash=crypto.createHash("sha256").update(token).digest("hex");const inv=await client.query("INSERT INTO portal_invites(email,display_name,role,token_hash,invited_by,expires_at) VALUES($1,$2,'parent',$3,$4,NOW()+INTERVAL '7 days') RETURNING expires_at",[r.guardian_email,r.guardian_name||"Parent / Guardian",tokenHash,req.user.id]);await client.query("INSERT INTO portal_invite_students(invite_id,student_id,relationship) VALUES((SELECT id FROM portal_invites WHERE token_hash=$1),$2,'Parent / Guardian')",[tokenHash,student.rows[0].id]);parentInvite={to:r.guardian_email,name:r.guardian_name||"Parent / Guardian",expiresAt:inv.rows[0].expires_at,token};}
+      if(parent.rowCount&&parent.rows[0].role==="parent")await client.query("INSERT INTO portal_student_access(user_id,student_id,relationship) VALUES($1,$2,'Parent / Guardian') ON CONFLICT DO NOTHING",[parent.rows[0].id,student.rows[0].id]);
+      else if(parent.rowCount)throw Object.assign(new Error("The guardian email already belongs to another account type."),{status:409});
+      else{
+        const token=crypto.randomBytes(32).toString("base64url"),hash=crypto.createHash("sha256").update(token).digest("hex");
+        const inv=await client.query("INSERT INTO portal_invites(email,display_name,role,token_hash,invited_by,expires_at) VALUES($1,$2,'parent',$3,$4,NOW()+INTERVAL '7 days') RETURNING id,expires_at",[r.guardian_email,r.guardian_name||"Parent / Guardian",hash,req.user.id]);
+        await client.query("INSERT INTO portal_invite_students(invite_id,student_id,relationship) VALUES($1,$2,'Parent / Guardian')",[inv.rows[0].id,student.rows[0].id]);
+        parentInvite={to:r.guardian_email,name:r.guardian_name||"Parent / Guardian",expiresAt:inv.rows[0].expires_at,token};
+      }
     }
     await client.query("UPDATE student_registration_requests SET status='approved',linked_student_id=$2,reviewed_by=$3,reviewed_at=NOW() WHERE id=$1",[id,student.rows[0].id,req.user.id]);
     await client.query("INSERT INTO app_audit_log(user_id,action,target_key) VALUES($1,'student-registration-approved',$2)",[req.user.id,studentNumber]);
     await client.query("COMMIT");
-    let parentEmailSent=null;if(parentInvite){try{await mailer.sendAccountEmail({to:parentInvite.to,name:parentInvite.name,role:"parent",kind:"activation",expiresAt:parentInvite.expiresAt,url:publicUrl(req,`/portal-register.html?token=${encodeURIComponent(parentInvite.token)}`)});parentEmailSent=true;}catch(error){parentEmailSent=false;console.warn("Parent activation email failed:",error.code||"SMTP error");}}
-    let studentNoticeSent=false;try{await mailer.sendRegistrationStatus({to:studentEmail,name:studentName,status:"approved",school:schoolName});studentNoticeSent=true;}catch(error){console.warn("Student approval notice failed:",error.code||"SMTP error");}
+    let parentEmailSent=null;if(parentInvite){try{await mailer.sendAccountEmail({to:parentInvite.to,name:parentInvite.name,role:"parent",kind:"activation",expiresAt:parentInvite.expiresAt,url:publicUrl(req,"/portal-register.html?token="+encodeURIComponent(parentInvite.token))});parentEmailSent=true;}catch(e){parentEmailSent=false;console.warn("Parent activation email failed:",e.code||"email transport error");}}
+    let studentNoticeSent=false;try{await mailer.sendRegistrationStatus({to:studentEmail,name:studentName,status:"approved",school:schoolName,studentNumber:studentNumber});studentNoticeSent=true;}catch(e){console.warn("Student approval notice failed:",e.code||"email transport error");}
     res.json({ok:true,student:{id:student.rows[0].id,studentNumber:student.rows[0].student_number},studentNoticeSent,parentEmailSent});
   }catch(e){await client.query("ROLLBACK").catch(()=>{});next(e);}finally{client.release();}
 });
-app.put("/api/admissions/learners/:id", requireRole("owner", "admin", "admissions"), async(req,res,next)=>{
-  const b=req.body||{}; const id=String(req.params.id||"");
-  if(!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({error:"Invalid learner record."});
-  const fullName=String(b.fullName||"").trim().slice(0,180), className=String(b.className||"").trim().slice(0,120),schoolCode=String(b.schoolCode||"zimsec"),school=ADMISSION_SCHOOLS.find(x=>x.code===schoolCode),classChoice=school?.classes.find(x=>x.name===className),submittedLevel=String(b.level||"").toLowerCase(),level=classChoice?classChoice.academicLevel:(["primary","secondary"].includes(submittedLevel)?submittedLevel:null),guardianEmail=String(b.guardianEmail||"").trim().toLowerCase();
-  if(fullName.length<2||!school||!className||guardianEmail&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guardianEmail)) return res.status(400).json({error:"Check the learner name, school, intended class and guardian email."});
-  const client=await pool.connect(); try { await client.query("BEGIN"); const rosterClass=`${schoolCode} · ${className}`.slice(0,80);const c=level?await client.query("INSERT INTO classes(level,name) VALUES($1,$2) ON CONFLICT(level,name) DO UPDATE SET name=EXCLUDED.name RETURNING id",[level,rosterClass]):null;
-    const updated=await client.query("UPDATE students SET full_name=$2,class_id=$3,active=$4,student_number=COALESCE(NULLIF($5,''),student_number) WHERE id=$1 RETURNING id,student_number,full_name,active",[id,fullName,c?.rows[0]?.id||null,b.active!==false,String(b.studentNumber||"").trim().slice(0,50)]);
-    if(!updated.rowCount) throw Object.assign(new Error("Learner not found."),{status:404});
-    await client.query(`INSERT INTO learner_profiles(student_id,date_of_birth,gender,address,guardian_name,guardian_email,guardian_phone,student_email,school_code,intended_class,updated_by) VALUES($1,NULLIF($2,'')::date,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT(student_id) DO UPDATE SET date_of_birth=EXCLUDED.date_of_birth,gender=EXCLUDED.gender,address=EXCLUDED.address,guardian_name=EXCLUDED.guardian_name,guardian_email=EXCLUDED.guardian_email,guardian_phone=EXCLUDED.guardian_phone,student_email=EXCLUDED.student_email,school_code=EXCLUDED.school_code,intended_class=EXCLUDED.intended_class,updated_by=EXCLUDED.updated_by,updated_at=NOW()`,[id,String(b.dateOfBirth||""),String(b.gender||"").slice(0,40),String(b.address||"").slice(0,2000),String(b.guardianName||"").slice(0,180),guardianEmail,String(b.guardianPhone||"").slice(0,40),String(b.studentEmail||"").trim().toLowerCase(),schoolCode,className,req.user.id]);
-    await client.query("INSERT INTO app_audit_log(user_id,action,target_key) VALUES($1,'learner-update',$2)",[req.user.id,updated.rows[0].student_number]); await client.query("COMMIT"); res.json({learner:updated.rows[0]});
-  } catch(e){await client.query("ROLLBACK").catch(()=>{});next(e);}finally{client.release();}
-});
 
+app.put("/api/admissions/learners/:id",requireRole("owner","admin","admissions"),async(req,res,next)=>{
+  const b=req.body||{},id=String(req.params.id||"");if(!/^[0-9a-f-]{36}$/i.test(id))return res.status(400).json({error:"Invalid learner record."});
+  const fullName=String(b.fullName||"").trim().slice(0,180),className=String(b.className||"").trim().slice(0,120),schoolCode=String(b.schoolCode||"zimsec"),school=ADMISSION_SCHOOLS.find(x=>x.code===schoolCode),classChoice=school?.classes.find(x=>x.name===className),level=classChoice?classChoice.academicLevel:(["primary","secondary"].includes(String(b.level||"").toLowerCase())?String(b.level).toLowerCase():null),guardianEmail=String(b.guardianEmail||"").trim().toLowerCase();
+  if(fullName.length<2||!school||!className||guardianEmail&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guardianEmail))return res.status(400).json({error:"Check the learner name, school, intended class and guardian email."});
+  if(String(b.studentEmail||"").trim()&&String(b.studentEmail||"").trim().toLowerCase()===guardianEmail)return res.status(400).json({error:"Use separate email addresses for parent and student portal accounts."});
+  const parsedHealth=parseHealthInformation(b);if(parsedHealth.error)return res.status(400).json({error:parsedHealth.error});const h=parsedHealth.value;
+  const client=await pool.connect();try{await client.query("BEGIN");
+    const rosterClass=(schoolCode+" · "+className).slice(0,80),c=level?await client.query("INSERT INTO classes(level,name) VALUES($1,$2) ON CONFLICT(level,name) DO UPDATE SET name=EXCLUDED.name RETURNING id",[level,rosterClass]):null;
+    const customNumber=String(b.studentNumber||"").trim().slice(0,50);
+    const updated=await client.query("UPDATE students SET full_name=$2,class_id=$3,active=$4,student_number=COALESCE(NULLIF($5,''),student_number) WHERE id=$1 RETURNING id,student_number,full_name,active",[id,fullName,c?.rows[0]?.id||null,b.active!==false,customNumber]);
+    if(!updated.rowCount)throw Object.assign(new Error("Learner not found."),{status:404});if(customNumber)await reserveStudentNumber(client,customNumber);
+    await client.query("INSERT INTO learner_profiles(student_id,date_of_birth,gender,address,guardian_name,guardian_email,guardian_phone,student_email,school_code,intended_class,updated_by,health_condition_status,health_conditions,health_condition_other,has_allergies,allergies,allergy_other,doctor_name,doctor_clinic,doctor_phone,doctor_email,doctor_address,health_notes) VALUES($1,NULLIF($2,'')::date,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23) ON CONFLICT(student_id) DO UPDATE SET date_of_birth=EXCLUDED.date_of_birth,gender=EXCLUDED.gender,address=EXCLUDED.address,guardian_name=EXCLUDED.guardian_name,guardian_email=EXCLUDED.guardian_email,guardian_phone=EXCLUDED.guardian_phone,student_email=EXCLUDED.student_email,school_code=EXCLUDED.school_code,intended_class=EXCLUDED.intended_class,updated_by=EXCLUDED.updated_by,updated_at=NOW(),health_condition_status=EXCLUDED.health_condition_status,health_conditions=EXCLUDED.health_conditions,health_condition_other=EXCLUDED.health_condition_other,has_allergies=EXCLUDED.has_allergies,allergies=EXCLUDED.allergies,allergy_other=EXCLUDED.allergy_other,doctor_name=EXCLUDED.doctor_name,doctor_clinic=EXCLUDED.doctor_clinic,doctor_phone=EXCLUDED.doctor_phone,doctor_email=EXCLUDED.doctor_email,doctor_address=EXCLUDED.doctor_address,health_notes=EXCLUDED.health_notes",
+      [id,String(b.dateOfBirth||""),String(b.gender||"").slice(0,40),String(b.address||"").slice(0,2000),String(b.guardianName||"").slice(0,180),guardianEmail,String(b.guardianPhone||"").slice(0,40),String(b.studentEmail||"").trim().toLowerCase(),schoolCode,className,req.user.id,h.healthConditionStatus,h.healthConditions,h.healthConditionOther,h.hasAllergies,h.allergies,h.allergyOther,h.doctorName,h.doctorClinic,h.doctorPhone,h.doctorEmail,h.doctorAddress,h.healthNotes]);
+    await client.query("INSERT INTO app_audit_log(user_id,action,target_key) VALUES($1,'learner-update',$2)",[req.user.id,updated.rows[0].student_number]);await client.query("COMMIT");res.json({learner:updated.rows[0]});
+  }catch(e){await client.query("ROLLBACK").catch(()=>{});next(e);}finally{client.release();}
+});
 app.post("/api/admissions/learners/:id/portal-access",requireRole("owner","admin","admissions"),async(req,res,next)=>{
   const id=String(req.params.id||"");if(!/^[0-9a-f-]{36}$/i.test(id))return res.status(400).json({error:"Invalid learner record."});
   const client=await pool.connect();try{await client.query("BEGIN");const r=await client.query(`SELECT s.id,s.full_name,p.guardian_name,p.guardian_email,p.student_email FROM students s JOIN learner_profiles p ON p.student_id=s.id WHERE s.id=$1 FOR UPDATE`,[id]);if(!r.rowCount)throw Object.assign(new Error("Learner profile not found."),{status:404});const p=r.rows[0];const guardian=String(p.guardian_email||"").trim().toLowerCase(),student=String(p.student_email||"").trim().toLowerCase();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guardian))throw Object.assign(new Error("Save a valid guardian email before issuing access."),{status:400});
@@ -698,30 +733,29 @@ app.post("/api/enquiries", async (req, res, next) => {
 });
 
 app.get("/api/public/admission-options", (_req,res)=>res.json({schools:ADMISSION_SCHOOLS}));
-app.post("/api/student-registrations", async(req,res,next)=>{
+app.post("/api/student-registrations",async(req,res,next)=>{
   const b=req.body||{};
-  if(String(b.website||"").trim()) return res.status(201).json({ok:true});
-  const studentName=String(b.studentName||"").trim().slice(0,180),studentEmail=String(b.studentEmail||"").trim().toLowerCase();
-  const password=b.password,schoolCode=String(b.schoolCode||""),className=String(b.className||"");
+  if(String(b.website||"").trim())return res.status(201).json({ok:true});
+  const studentName=String(b.studentName||"").trim().slice(0,180),studentEmail=String(b.studentEmail||"").trim().toLowerCase(),password=b.password,schoolCode=String(b.schoolCode||""),className=String(b.className||"");
   const school=ADMISSION_SCHOOLS.find(x=>x.code===schoolCode),classChoice=school?.classes.find(x=>x.name===className);
-  const guardianName=String(b.guardianName||"").trim().slice(0,180),guardianEmail=String(b.guardianEmail||"").trim().toLowerCase(),guardianPhone=String(b.guardianPhone||"").trim().slice(0,40);
-  const dateOfBirth=String(b.dateOfBirth||"").trim(),notes=String(b.notes||"").trim().slice(0,1500);
-  if(studentName.length<2||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(studentEmail)||studentEmail.length>254||!validPassword(password)||!school||!classChoice||guardianEmail&&(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guardianEmail)||guardianEmail.length>254)||guardianName.length>180||guardianPhone.length>40||dateOfBirth&&!/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)) return res.status(400).json({error:"Complete the student email, 10-character password, learner name, school and intended class. Check optional guardian details too."});
-  if(guardianEmail===studentEmail) return res.status(400).json({error:"Use the student’s own email in the student email field. A guardian can use a separate email."});
+  const guardianName=String(b.guardianName||"").trim().slice(0,180),guardianEmail=String(b.guardianEmail||"").trim().toLowerCase(),guardianPhone=String(b.guardianPhone||"").trim().slice(0,40),dateOfBirth=String(b.dateOfBirth||"").trim(),notes=String(b.notes||"").trim().slice(0,1500);
+  if(studentName.length<2||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(studentEmail)||studentEmail.length>254||!validPassword(password)||!school||!classChoice||guardianEmail&&(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guardianEmail)||guardianEmail.length>254)||guardianName.length>180||guardianPhone.length>40||dateOfBirth&&!/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth))return res.status(400).json({error:"Complete the student email, password, learner name, school and intended class. Check optional guardian details too."});
+  if(guardianEmail===studentEmail)return res.status(400).json({error:"Use the student’s own email in the student email field. A guardian can use a separate email."});
+  const parsedHealth=parseHealthInformation(b);if(parsedHealth.error)return res.status(400).json({error:parsedHealth.error});const h=parsedHealth.value;
   const client=await pool.connect();
   try{
     await client.query("BEGIN");
     const existing=await client.query("SELECT id,role,active FROM app_users WHERE LOWER(email)=$1 FOR UPDATE",[studentEmail]);
-    if(existing.rowCount) throw Object.assign(new Error("This email already has an account or registration request. Use the portal sign-in or contact Admissions."),{status:409});
+    if(existing.rowCount)throw Object.assign(new Error("This email already has an account or registration request. Use the portal sign-in or contact Admissions."),{status:409});
     const user=await client.query("INSERT INTO app_users(email,display_name,role,section,password_hash,active) VALUES($1,$2,'student','All Sections',$3,FALSE) RETURNING id",[studentEmail,studentName,await passwordHash(password)]);
-    const request=await client.query(`INSERT INTO student_registration_requests(student_user_id,student_name,student_email,school_code,intended_class,academic_level,date_of_birth,guardian_name,guardian_email,guardian_phone,notes)
-      VALUES($1,$2,$3,$4,$5,$6,NULLIF($7,'')::date,$8,$9,$10,$11) RETURNING id`,[user.rows[0].id,studentName,studentEmail,school.code,classChoice.name,classChoice.academicLevel,dateOfBirth,guardianName,guardianEmail,guardianPhone,notes]);
+    const studentNumber=await nextStudentNumber(client);
+    const request=await client.query("INSERT INTO student_registration_requests(student_user_id,student_name,student_email,school_code,intended_class,academic_level,date_of_birth,guardian_name,guardian_email,guardian_phone,notes,student_number,health_condition_status,health_conditions,health_condition_other,has_allergies,allergies,allergy_other,doctor_name,doctor_clinic,doctor_phone,doctor_email,doctor_address,health_notes) VALUES($1,$2,$3,$4,$5,$6,NULLIF($7,'')::date,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24) RETURNING id,student_number",
+      [user.rows[0].id,studentName,studentEmail,school.code,classChoice.name,classChoice.academicLevel,dateOfBirth,guardianName,guardianEmail,guardianPhone,notes,studentNumber,h.healthConditionStatus,h.healthConditions,h.healthConditionOther,h.hasAllergies,h.allergies,h.allergyOther,h.doctorName,h.doctorClinic,h.doctorPhone,h.doctorEmail,h.doctorAddress,h.healthNotes]);
     await client.query("COMMIT");
-    let emailSent=false;try{await mailer.sendRegistrationStatus({to:studentEmail,name:studentName,status:"pending",school:school.name,intendedClass:classChoice.name});emailSent=true;}catch(error){console.warn("Student application receipt email failed:",error.code||"SMTP error");}
-    res.status(201).json({ok:true,requestId:request.rows[0].id,emailSent,message:"Registration submitted. Your student account will be available after Admissions approves your application."});
-  }catch(error){await client.query("ROLLBACK").catch(()=>{});next(error);}finally{client.release();}
+    let emailSent=false;try{await mailer.sendRegistrationStatus({to:studentEmail,name:studentName,status:"pending",school:school.name,intendedClass:classChoice.name,studentNumber:studentNumber});emailSent=true;}catch(e){console.warn("Student application receipt email failed:",e.code||"email transport error");}
+    res.status(201).json({ok:true,requestId:request.rows[0].id,studentNumber:request.rows[0].student_number,emailSent,message:"Registration submitted. Student number "+request.rows[0].student_number+". The student account will be available after Admissions approves the application."});
+  }catch(e){await client.query("ROLLBACK").catch(()=>{});next(e);}finally{client.release();}
 });
-
 app.post("/api/registration-requests", async (req, res, next) => {
   try {
     const b = req.body || {};
