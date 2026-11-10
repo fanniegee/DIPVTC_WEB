@@ -71,6 +71,7 @@
 <div class="modal" id="roleModal"><div class="modal-box"><h3 id="roleTitle"></h3><p id="roleDesc" style="font-size:11px;color:#6b7280"></p><div id="dutyList" style="margin:12px 0"></div><div style="display:flex;gap:6px"><input id="newDuty" class="input" placeholder="Add new duty" style="flex:1"><button class="btn btn-orange" onclick="addDuty()">Add</button></div><div style="text-align:right;margin-top:10px"><button class="btn btn-dark" onclick="closeRole()">Done</button></div></div></div>
 <div class="modal" id="studentModal"><div class="modal-box"><h3 id="stuName"></h3><div id="stuDetail"></div><div style="text-align:right;margin-top:12px"><button class="btn btn-dark" onclick="closeStudent()">Close</button></div></div></div>
 <script>
+var courseAssignments={};
 let defaultRoles={"Principal":{desc:"School-wide leadership and academic oversight",duties:["Review school-wide student and course information","Monitor assigned staff tasks","Coordinate admissions and enrolment","Review attendance and academic progress","Escalate finance and website changes to the Owner"],color:"#0a1931",border:"#e67e22"},"Teacher / Tutor / Lecturer":{desc:"Teaches all syllabuses",duties:["View pupils","Mark attendance","Upload assignments","Enter marks","View timetable","Message parents"],color:"#1e90ff",border:"#e67e22"},"Admissions Officer":{desc:"Handles new students",duties:["View and reply to enquiries","Review applications","Enrol students","Create pupil profile","View classes","Generate offer letters"],color:"#1e90ff",border:"#0a1931"},"Finance / Fees Officer":{desc:"Handles money",duties:["View fees collected","Record payments","Create invoices","View status","Export report","Send reminders"],color:"#1e90ff",border:"#e67e22"},"Content Manager":{desc:"Website manager",duties:["Edit site content","Add news","Update staff profiles","Manage announcements","View enquiries","Upload gallery","Enquiries - Reply to messages","Applications - Accept / Waitlist / Decline","Online Timetable","Calendar & Terms","Campus Timetable","Change Log","News Posts","All Site Content"],color:"#1e90ff",border:"#0a1931"},"Front Desk":{desc:"Reception",duties:["View and reply to enquiries","Log walk-in enquiries","View pupils list","View applications","View timetable","Answer messages"],color:"#1e90ff",border:"#0a1931"}};
 let roles=JSON.parse(localStorage.getItem('dipvtc_roles_v2')||'null')||defaultRoles;
 if(!roles.Principal){roles.Principal=defaultRoles.Principal;}
@@ -79,7 +80,7 @@ let tasks=JSON.parse(localStorage.getItem('dipvtc_tasks')||'[]');
 let students=JSON.parse(localStorage.getItem('dipvtc_students')||'[]');
 let pupils=JSON.parse(localStorage.getItem('dipvtc_pupils')||'[]');
 let allStudents=[...students,...pupils];
-let courseAssignments=JSON.parse(localStorage.getItem('dipvtc_course_teachers')||'{}');
+courseAssignments=JSON.parse(localStorage.getItem('dipvtc_course_teachers')||'{}');
 let activeRole=null;
 function save(){localStorage.setItem('dipvtc_roles_v2',JSON.stringify(roles));localStorage.setItem('dipvtc_team',JSON.stringify(team));localStorage.setItem('dipvtc_tasks',JSON.stringify(tasks));localStorage.setItem('dipvtc_course_teachers',JSON.stringify(courseAssignments));}
 if(!JSON.parse(localStorage.getItem('dipvtc_roles_v2')||'{}').Principal) save();
