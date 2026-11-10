@@ -20,7 +20,7 @@
     timer = setTimeout(flush, 120);
   }
   async function flush(keepalive = false) {
-    if (!pending.size) return;
+    if (!pending.size) return true;
     const batch = Object.fromEntries(pending);
     try {
       const response = await fetch("/api/state/batch", {
@@ -31,10 +31,12 @@
       for (const key of Object.keys(batch)) if (pending.get(key) === batch[key]) pending.delete(key);
       if (pending.size) timer = setTimeout(flush, 120);
       if (failed) { failed = false; showStatus("Changes saved to the server.", false); }
+      return true;
     } catch {
       failed = true;
       showStatus("Could not save changes to the server. Keep this page open and try again.", true);
       timer = setTimeout(flush, 1500);
+      return false;
     }
   }
   function showStatus(message, isError) {
