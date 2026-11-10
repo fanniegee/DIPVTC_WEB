@@ -636,7 +636,25 @@ app.put("/api/state/batch", requireRole("owner", "admin", ...STAFF_ROLE_CODES), 
   } finally { client.release(); }
 });
 
-app.post("/api/staff/tasks/:taskId/complete", requireRole(...STAFF_ROLE_CODES), async (req, res, next) => {
+app.get("/api/admin/campus-inspection",requireRole("owner","admin"),async(_req,res,next)=>{try{
+  const [usersResult,stateResult,activityResult,metricsResult]=await Promise.all([
+    pool.query("SELECT id,email,display_name,role,role_title,section,active,created_at FROM app_users WHERE role NOT IN ('parent','student') ORDER BY active DESC,role,display_name"),
+    pool.query("SELECT value FROM site_state WHERE state_key='dipvtc_tasks'"),
+    pool.query("SELECT a.id,a.action,a.target_key,a.created_at,u.display_name,u.email,u.role FROM app_audit_log a LEFT JOIN app_users u ON u.id=a.user_id ORDER BY a.id DESC LIMIT 150"),
+    pool.query("SELECT (SELECT COUNT(*)::int FROM students WHERE active=TRUE) AS active_learners,(SELECT COUNT(*)::int FROM student_registration_requests WHERE status IN ('pending','in_review')) AS pending_applications,(SELECT COUNT(*)::int FROM learner_attendance WHERE attendance_date=CURRENT_DATE) AS attendance_today,(SELECT COUNT(*)::int FROM app_invites WHERE accepted_at IS NULL AND expires_at>NOW()) AS pending_staff_invites")
+  ]);
+  let tasks=stateResult.rows[0]?.value??[];if(typeof tasks==="string"){try{tasks=JSON.parse(tasks)}catch{tasks=[]}}if(!Array.isArray(tasks))tasks=[];
+  res.setHeader("Cache-Control","no-store");res.json({users:usersResult.rows,tasks,activities:activityResult.rows,metrics:metricsResult.rows[0]||{}});
+}catch(e){next(e);}});
+app.post("/api/admin/campus-tasks",requireRole("owner","admin"),async(req,res,next)=>{
+  const b=req.body||{},to=String(b.to||"").trim().toLowerCase(),title=String(b.title||"").trim().slice(0,180),course=String(b.course||"Campus-wide").trim().slice(0,120),details=String(b.details||"").trim().slice(0,3000),deadline=String(b.deadline||"").trim();
+  if(!to||title.length<3)return res.status(400).json({error:"Choose a staff member and enter a task title."});if(deadline&&!/^\d{4}-\d{2}-\d{2}$/.test(deadline))return res.status(400).json({error:"Enter a valid deadline."});
+  const client=await pool.connect();try{await client.query("BEGIN");const user=await client.query("SELECT email,display_name,role,role_title,section FROM app_users WHERE LOWER(email)=LOWER($1) AND active=TRUE AND role NOT IN ('parent','student')",[to]);if(!user.rowCount)throw Object.assign(new Error("Select an active staff or management account."),{status:400});await client.query("SELECT pg_advisory_xact_lock(2010312)");const saved=await client.query("SELECT value FROM site_state WHERE state_key='dipvtc_tasks' FOR UPDATE");let tasks=saved.rows[0]?.value??[];if(typeof tasks==="string"){try{tasks=JSON.parse(tasks)}catch{tasks=[]}}if(!Array.isArray(tasks))tasks=[];
+    const task={id:crypto.randomUUID(),to:user.rows[0].email,title,course,details,deadline,status:"assigned",assignedAt:new Date().toISOString(),assignedBy:req.user.email,assignedByName:req.user.display_name,assignedByRole:req.user.role,assigneeName:user.rows[0].display_name,assigneeRole:user.rows[0].role_title||user.rows[0].role,assigneeSection:user.rows[0].section,source:"campus-admin",requireCompletionNote:true};tasks.push(task);
+    await client.query("INSERT INTO site_state(state_key,value,updated_by,updated_at) VALUES('dipvtc_tasks',$1::jsonb,$2,NOW()) ON CONFLICT(state_key) DO UPDATE SET value=EXCLUDED.value,updated_by=EXCLUDED.updated_by,updated_at=NOW()",[JSON.stringify(tasks),req.user.id]);await client.query("INSERT INTO app_audit_log(user_id,action,target_key) VALUES($1,'campus-task-assigned',$2)",[req.user.id,(task.id+': '+title).slice(0,120)]);await client.query("COMMIT");res.status(201).json({task});
+  }catch(e){await client.query("ROLLBACK").catch(()=>{});next(e);}finally{client.release();}
+});
+app.post("/api/staff/tasks/:taskId/complete", requireRole("admin",...STAFF_ROLE_CODES), async (req, res, next) => {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -648,14 +666,18 @@ app.post("/api/staff/tasks/:taskId/complete", requireRole(...STAFF_ROLE_CODES), 
     if (!Array.isArray(tasks)) tasks = [];
     const task = tasks.find(item => String(item.id) === String(req.params.taskId) && String(item.to || "").toLowerCase() === req.user.email.toLowerCase());
     if (!task) throw Object.assign(new Error("That task is not assigned to your account."), { status: 404 });
+    const completionNote=String(req.body?.note||"").trim().slice(0,2000);
+    if(task.requireCompletionNote&&!completionNote)throw Object.assign(new Error("Add a short completion note before closing this task."),{status:400});
     task.status = "completed";
     task.completedAt = new Date().toISOString();
+    task.completedNote = completionNote;
+    task.completedBy = req.user.email;
     await client.query(
       `INSERT INTO site_state(state_key,value,updated_by,updated_at) VALUES('dipvtc_tasks',$1::jsonb,$2,NOW())
        ON CONFLICT(state_key) DO UPDATE SET value=EXCLUDED.value,updated_by=EXCLUDED.updated_by,updated_at=NOW()`,
       [JSON.stringify(tasks), req.user.id]
     );
-    await client.query("INSERT INTO app_audit_log(user_id,action,target_key) VALUES($1,'task-complete',$2)", [req.user.id, String(task.id)]);
+    await client.query("INSERT INTO app_audit_log(user_id,action,target_key) VALUES($1,'task-complete',$2)", [req.user.id, String(task.title||task.id).slice(0,120)]);
     await client.query("COMMIT");
     res.json({ ok: true });
   } catch (error) {
