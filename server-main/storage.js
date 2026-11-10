@@ -4,7 +4,12 @@
   let timer = 0;
   let failed = false;
   const storage = {
-    getItem(key) { return Object.prototype.hasOwnProperty.call(state, String(key)) ? state[String(key)] : null; },
+    getItem(key) {
+      const name = String(key);
+      if (!Object.prototype.hasOwnProperty.call(state, name)) return null;
+      const value = state[name];
+      return typeof value === "string" ? value : JSON.stringify(value);
+    },
     setItem(key, value) { state[String(key)] = String(value); queue(String(key), String(value)); },
     removeItem(key) { delete state[String(key)]; queue(String(key), null); },
     key(index) { return Object.keys(state)[index] ?? null; },
