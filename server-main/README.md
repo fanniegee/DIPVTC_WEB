@@ -51,3 +51,11 @@ Teacher media fields currently accept HTTPS links; arbitrary uploaded HTML is no
 
 
 Owner and Admin can open a read-only Staff dashboard preview and, from each learner record, read-only Student and Parent portal previews. Portal previews require a management session and do not grant or change family-account access.
+
+## Teacher private learning media and HTML requests
+
+Apply `database/008_learning_media_and_html_requests.sql` after migration 007. Teacher audio, video and image uploads are private objects in an S3-compatible bucket; the application redirects authorized class members to short-lived signed URLs. Keep the bucket private. Set these values in the service environment (never commit secrets): `MEDIA_STORAGE_DRIVER=s3`, `MEDIA_S3_ENDPOINT`, `MEDIA_S3_BUCKET`, `MEDIA_S3_REGION`, `MEDIA_S3_ACCESS_KEY_ID`, `MEDIA_S3_SECRET_ACCESS_KEY`, and optionally `MEDIA_MAX_UPLOAD_MB` (1–25). The S3 credentials need object read/write access to the `learning/` prefix. The free Render web-service filesystem is ephemeral, so do not save learner media there.
+
+The teacher HTML option currently records an audited request containing the class, task title, file name and teacher note. It does not upload, store, or execute the selected HTML file. The later HTML activity connection remains a separate stage.
+
+Teacher question pasting accepts numbered headings such as `Q1:` or `1.`, choices such as `A) ...`, and optional `Answer: B` / `Marks: 2` lines. Teachers can edit parsed items, attach media to a specific item, preview, then publish.
