@@ -7,7 +7,7 @@ const bundledEngine = ["assets", "DIPvtC-MARK-ENGINE-v4.1.0-local-test-ready"].j
 
 async function main() {
   await fs.mkdir(publicRoot, { recursive: true });
-  const excludedRoots = new Set(["server-main", "database", "node_modules", ".git", ".env", ".env.example", "package.json", "package-lock.json", "server"]);
+  const excludedRoots = new Set(["server-main", "database", "node_modules", ".git", ".gitignore", ".env", ".env.example", "package.json", "package-lock.json", "server"]);
   const entries = await fs.readdir(siteRoot, { withFileTypes: true });
   for (const entry of entries) {
     if (excludedRoots.has(entry.name) || entry.name === "server.js") continue;
