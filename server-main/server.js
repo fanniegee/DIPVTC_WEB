@@ -41,7 +41,7 @@ const OWNER_KEYS = new Set([
   "dipvtc_tasks", "dipvtc_team", "dipvtc_usd_rate", "dipvtc_welcome_text", "dipvtc_welcome_title"
 ]);
 const ADMIN_KEYS = new Set(["dipvtc_courses", "dipvtc_students", "dipvtc_enquiries", "dipvtc_applications"]);
-const STAFF_ROLE_CODES = ["principal", "teacher", "admissions", "finance", "content", "front_desk", "staff"];
+const STAFF_ROLE_CODES = ["principal", "teacher", "admissions", "finance", "content", "front_desk", "driver", "staff"];
 const ADMISSION_SCHOOLS = [
   { code: "cambridge", name: "Cambridge", classes: [
     { name: "ECD A", academicLevel: "primary" }, { name: "ECD B", academicLevel: "primary" },
@@ -66,11 +66,12 @@ const STAFF_KEYS_BY_ROLE = {
 const STAFF_ROLE_LABELS = new Map([
   ["principal", { role: "principal", title: "Principal" }],
   ["teacher / tutor / lecturer", { role: "teacher", title: "Teacher / Tutor / Lecturer" }],
-  ["teacher", { role: "teacher", title: "Teacher / Tutor / Lecturer" }],
+  ["teacher", { role: "teacher", title: "Teacher" }],
   ["admissions officer", { role: "admissions", title: "Admissions Officer" }],
   ["finance / fees officer", { role: "finance", title: "Finance / Fees Officer" }],
   ["content manager", { role: "content", title: "Content Manager" }],
-  ["front desk", { role: "front_desk", title: "Front Desk" }]
+  ["front desk", { role: "front_desk", title: "Front Desk" }],
+  ["driver", { role: "driver", title: "Driver" }]
 ]);
 const PUBLIC_KEYS = new Set([
   "dipvtc_site_hero", "dipvtc_site_herosub", "dipvtc_site_motto", "dipvtc_admission_text",
@@ -679,7 +680,7 @@ app.post("/api/admin/teaching-assignments",requireRole("owner","admin"),async(re
 });
 app.get("/api/admin/staff-role-assignments",requireRole("owner","admin"),async(_req,res,next)=>{try{
   const [staffResult,stateResult]=await Promise.all([pool.query("SELECT id,email,display_name,role,role_title,section,active FROM app_users WHERE role NOT IN ('owner','admin','parent','student') ORDER BY active DESC,display_name,email"),pool.query("SELECT state_key,value FROM site_state WHERE state_key=ANY($1::text[])",[["dipvtc_roles_v2","dipvtc_staff_role_assignments"]])]);
-  const values=Object.fromEntries(stateResult.rows.map(row=>[row.state_key,row.value]));const parse=(value,fallback)=>{try{return typeof value==="string"?JSON.parse(value):value}catch{return fallback}};const profiles=parse(values.dipvtc_roles_v2,null);const sourceProfiles=profiles&&typeof profiles==="object"&&!Array.isArray(profiles)?profiles:Object.fromEntries([...new Map([...STAFF_ROLE_LABELS.values()].map(role=>[role.title,role])).keys()].map(name=>[name,{desc:"Staff responsibility",duties:[]}]));const safeProfiles=Object.fromEntries(Object.entries(sourceProfiles).filter(([name])=>STAFF_ROLE_LABELS.has(name.toLowerCase())));const assignments=parse(values.dipvtc_staff_role_assignments,{});res.setHeader("Cache-Control","no-store");res.json({staff:staffResult.rows,profiles:safeProfiles,assignments:assignments&&typeof assignments==="object"&&!Array.isArray(assignments)?assignments:{},positions:[...new Map([...STAFF_ROLE_LABELS.values()].map(role=>[role.title,role])).values()]});
+  const values=Object.fromEntries(stateResult.rows.map(row=>[row.state_key,row.value]));const parse=(value,fallback)=>{try{return typeof value==="string"?JSON.parse(value):value}catch{return fallback}};const profiles=parse(values.dipvtc_roles_v2,null);const sourceProfiles=profiles&&typeof profiles==="object"&&!Array.isArray(profiles)?profiles:{};const defaultProfiles=Object.fromEntries([...new Map([...STAFF_ROLE_LABELS.values()].map(role=>[role.title,role])).keys()].map(name=>[name,{desc:"Staff account",duties:[]}]));const mergedProfiles={...defaultProfiles,...sourceProfiles};if(mergedProfiles["Teacher / Tutor / Lecturer"]&&!mergedProfiles.Teacher)mergedProfiles.Teacher=mergedProfiles["Teacher / Tutor / Lecturer"];delete mergedProfiles["Teacher / Tutor / Lecturer"];const safeProfiles=Object.fromEntries(Object.entries(mergedProfiles).filter(([name])=>!new Set(["owner","admin","administrator","parent","student"]).has(String(name).trim().toLowerCase())));const assignments=parse(values.dipvtc_staff_role_assignments,{});const positions=Object.keys(safeProfiles).map(title=>roleDetailsForInvite(title)).filter(Boolean);res.setHeader("Cache-Control","no-store");res.json({staff:staffResult.rows,profiles:safeProfiles,assignments:assignments&&typeof assignments==="object"&&!Array.isArray(assignments)?assignments:{},positions});
 }catch(error){next(error);}});
 app.put("/api/admin/staff-role-assignments",requireRole("owner","admin"),async(req,res,next)=>{
   const email=String(req.body?.email||"").trim().toLowerCase(),roles=Array.isArray(req.body?.roles)?[...new Set(req.body.roles.map(value=>String(value).trim()).filter(Boolean))].slice(0,20):null;if(!email||!roles)return res.status(400).json({error:"Choose a staff member and at least an empty role selection."});
