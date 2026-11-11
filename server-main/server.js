@@ -204,7 +204,7 @@ app.use((req, res, next) => {
   const needsSession = req.path === "/owner.html" || req.path === "/admin.html" || req.path === "/staff.html" || req.path === "/fees.html" || req.path === "/fees.htm" || req.path === "/assets/fees.html" || req.path.startsWith("/exam-mark-entry") ||
     req.path === "/registrations.html" || req.path === "/learning.html" || req.path === "/parent-portal.html" || req.path === "/student-portal.html" ||
     req.path.startsWith("/api/state") || req.path === "/api/auth/password" || req.path.startsWith("/api/team/invites") || req.path.startsWith("/api/staff/") ||
-    req.path.startsWith("/api/admissions/") || req.path.startsWith("/api/portal/") || req.path.startsWith("/api/admin/password-reset") || req.path.startsWith("/api/admin/email/");
+    req.path.startsWith("/api/admissions/") || req.path.startsWith("/api/portal/") || req.path.startsWith("/api/admin/");
   if (!needsSession) return next();
   authenticate(req, res, next);
 });
@@ -637,15 +637,45 @@ app.put("/api/state/batch", requireRole("owner", "admin", ...STAFF_ROLE_CODES), 
 });
 
 app.get("/api/admin/campus-inspection",requireRole("owner","admin"),async(_req,res,next)=>{try{
-  const [usersResult,stateResult,activityResult,metricsResult]=await Promise.all([
+  // Keep staff/tasks available even if an optional KPI table is unavailable on an older deployment.
+  const [usersResult,stateResult,activityResult]=await Promise.all([
     pool.query("SELECT id,email,display_name,role,role_title,section,active,created_at FROM app_users WHERE role NOT IN ('parent','student') ORDER BY active DESC,role,display_name"),
     pool.query("SELECT value FROM site_state WHERE state_key='dipvtc_tasks'"),
-    pool.query("SELECT a.id,a.action,a.target_key,a.created_at,u.display_name,u.email,u.role FROM app_audit_log a LEFT JOIN app_users u ON u.id=a.user_id ORDER BY a.id DESC LIMIT 150"),
-    pool.query("SELECT (SELECT COUNT(*)::int FROM students WHERE active=TRUE) AS active_learners,(SELECT COUNT(*)::int FROM student_registration_requests WHERE status IN ('pending','in_review')) AS pending_applications,(SELECT COUNT(*)::int FROM learner_attendance WHERE attendance_date=CURRENT_DATE) AS attendance_today,(SELECT COUNT(*)::int FROM app_invites WHERE accepted_at IS NULL AND expires_at>NOW()) AS pending_staff_invites")
+    pool.query("SELECT a.id,a.action,a.target_key,a.created_at,u.display_name,u.email,u.role FROM app_audit_log a LEFT JOIN app_users u ON u.id=a.user_id ORDER BY a.id DESC LIMIT 150")
   ]);
   let tasks=stateResult.rows[0]?.value??[];if(typeof tasks==="string"){try{tasks=JSON.parse(tasks)}catch{tasks=[]}}if(!Array.isArray(tasks))tasks=[];
-  res.setHeader("Cache-Control","no-store");res.json({users:usersResult.rows,tasks,activities:activityResult.rows,metrics:metricsResult.rows[0]||{}});
+  let metrics={};try{const m=await pool.query("SELECT (SELECT COUNT(*)::int FROM students WHERE active=TRUE) AS active_learners,(SELECT COUNT(*)::int FROM student_registration_requests WHERE status IN ('pending','in_review')) AS pending_applications,(SELECT COUNT(*)::int FROM learner_attendance WHERE attendance_date=CURRENT_DATE) AS attendance_today,(SELECT COUNT(*)::int FROM app_invites WHERE accepted_at IS NULL AND expires_at>NOW()) AS pending_staff_invites");metrics=m.rows[0]||{};}catch(error){metrics={metricsUnavailable:true};console.warn("Campus overview KPI query unavailable:",error.message)}
+  res.setHeader("Cache-Control","no-store");res.json({users:usersResult.rows,tasks,activities:activityResult.rows,metrics});
 }catch(e){next(e);}});
+app.get("/api/admin/teaching-assignments",requireRole("owner","admin"),async(_req,res,next)=>{try{
+  const [staffResult,stateResult]=await Promise.all([
+    pool.query("SELECT id,email,display_name,role,role_title,section,active FROM app_users WHERE role='teacher' ORDER BY active DESC,display_name,email"),
+    pool.query("SELECT state_key,value FROM site_state WHERE state_key=ANY($1::text[])",[["dipvtc_subjects_image_boxes","dipvtc_course_teachers"]])
+  ]);
+  const values=Object.fromEntries(stateResult.rows.map(row=>[row.state_key,row.value]));
+  const asArray=value=>{try{const parsed=typeof value==="string"?JSON.parse(value):value;return Array.isArray(parsed)?parsed:[]}catch{return[]}};
+  const asObject=value=>{try{const parsed=typeof value==="string"?JSON.parse(value):value;return parsed&&typeof parsed==="object"&&!Array.isArray(parsed)?parsed:{}}catch{return{}}};
+  res.setHeader("Cache-Control","no-store");res.json({teachers:staffResult.rows,subjects:asArray(values.dipvtc_subjects_image_boxes),assignments:asObject(values.dipvtc_course_teachers),roles:[...new Map([...STAFF_ROLE_LABELS.values()].map(role=>[role.title,role])).values()]});
+}catch(error){next(error);}});
+app.post("/api/admin/teaching-assignments",requireRole("owner","admin"),async(req,res,next)=>{
+  const subject=String(req.body?.subject||"").trim().slice(0,180),email=String(req.body?.email||"").trim().toLowerCase();
+  if(!subject||!email)return res.status(400).json({error:"Choose a subject and teacher."});
+  const client=await pool.connect();try{await client.query("BEGIN");await client.query("SELECT pg_advisory_xact_lock(2010313)");
+    const teacher=await client.query("SELECT email,display_name,role_title FROM app_users WHERE LOWER(email)=LOWER($1) AND role='teacher' AND active=TRUE",[email]);if(!teacher.rowCount)throw Object.assign(new Error("Choose an active teacher account."),{status:400});
+    const state=await client.query("SELECT state_key,value FROM site_state WHERE state_key=ANY($1::text[]) FOR UPDATE",[["dipvtc_subjects_image_boxes","dipvtc_course_teachers"]]);const values=Object.fromEntries(state.rows.map(row=>[row.state_key,row.value]));
+    const parse=(value,fallback)=>{try{return typeof value==="string"?JSON.parse(value):value}catch{return fallback}};const subjects=parse(values.dipvtc_subjects_image_boxes,[]);const exists=Array.isArray(subjects)&&subjects.some(item=>String(typeof item==="string"?item:item?.name||"").trim().toLowerCase()===subject.toLowerCase());if(!exists)throw Object.assign(new Error("That subject is no longer in the course list. Refresh and try again."),{status:409});
+    const assignments=parse(values.dipvtc_course_teachers,{});const safeAssignments=assignments&&typeof assignments==="object"&&!Array.isArray(assignments)?assignments:{};safeAssignments[subject]={email:teacher.rows[0].email,name:teacher.rows[0].display_name,role:teacher.rows[0].role_title||"Teacher"};
+    await client.query("INSERT INTO site_state(state_key,value,updated_by,updated_at) VALUES('dipvtc_course_teachers',$1::jsonb,$2,NOW()) ON CONFLICT(state_key) DO UPDATE SET value=EXCLUDED.value,updated_by=EXCLUDED.updated_by,updated_at=NOW()",[JSON.stringify(safeAssignments),req.user.id]);await client.query("INSERT INTO app_audit_log(user_id,action,target_key) VALUES($1,'teacher-subject-assigned',$2)",[req.user.id,(subject+" → "+teacher.rows[0].email).slice(0,120)]);await client.query("COMMIT");res.json({ok:true,assignments:safeAssignments});
+  }catch(error){await client.query("ROLLBACK").catch(()=>{});next(error);}finally{client.release();}
+});
+app.post("/api/admin/teacher-roles",requireRole("owner","admin"),async(req,res,next)=>{
+  const email=String(req.body?.email||"").trim().toLowerCase(),label=String(req.body?.role||"").trim().toLowerCase(),details=STAFF_ROLE_LABELS.get(label);
+  if(!email||!details)return res.status(400).json({error:"Choose a teacher and one of the existing staff roles."});
+  try{const result=await pool.query("UPDATE app_users SET role=$1,role_title=$2,updated_at=NOW() WHERE LOWER(email)=LOWER($3) AND role='teacher' AND active=TRUE RETURNING id,email,display_name,role,role_title,section,active",[details.role,details.title,email]);if(!result.rowCount)return res.status(404).json({error:"That active teacher account was not found. Refresh the page and try again."});await pool.query("INSERT INTO app_audit_log(user_id,action,target_key) VALUES($1,'teacher-role-updated',$2)",[req.user.id,(result.rows[0].email+" → "+details.title).slice(0,120)]);res.json({ok:true,staff:result.rows[0]});}catch(error){next(error);}
+});
+app.get("/api/staff/teaching-assignments",requireRole("teacher"),async(req,res,next)=>{try{
+  const result=await pool.query("SELECT value FROM site_state WHERE state_key='dipvtc_course_teachers'");let assignments=result.rows[0]?.value??{};if(typeof assignments==="string"){try{assignments=JSON.parse(assignments)}catch{assignments={}}}if(!assignments||typeof assignments!=="object"||Array.isArray(assignments))assignments={};const subjects=Object.entries(assignments).filter(([,person])=>String(person?.email||"").toLowerCase()===req.user.email.toLowerCase()).map(([subject])=>subject);res.setHeader("Cache-Control","no-store");res.json({subjects});
+}catch(error){next(error);}});
 app.post("/api/admin/campus-tasks",requireRole("owner","admin"),async(req,res,next)=>{
   const b=req.body||{},to=String(b.to||"").trim().toLowerCase(),title=String(b.title||"").trim().slice(0,180),course=String(b.course||"Campus-wide").trim().slice(0,120),details=String(b.details||"").trim().slice(0,3000),deadline=String(b.deadline||"").trim();
   if(!to||title.length<3)return res.status(400).json({error:"Choose a staff member and enter a task title."});if(deadline&&!/^\d{4}-\d{2}-\d{2}$/.test(deadline))return res.status(400).json({error:"Enter a valid deadline."});
