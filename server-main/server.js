@@ -208,16 +208,25 @@ app.use((req, res, next) => {
   if (!needsSession) return next();
   authenticate(req, res, next);
 });
+function assignedRoleNamesForUser(user) {
+  return pool.query("SELECT value FROM site_state WHERE state_key='dipvtc_staff_role_assignments'").then(result=>{
+    let assignments=result.rows[0]?.value??{};if(typeof assignments==="string"){try{assignments=JSON.parse(assignments)}catch{assignments={}}}if(!assignments||typeof assignments!=="object"||Array.isArray(assignments))return [];
+    const names=assignments[String(user.email||"").toLowerCase()];return Array.isArray(names)?names.filter(name=>typeof name==="string").slice(0,20):[];
+  });
+}
+async function assignedRoleCodesForUser(user) {
+  const names=await assignedRoleNamesForUser(user);return [...new Set(names.map(name=>STAFF_ROLE_LABELS.get(name.trim().toLowerCase())?.role).filter(Boolean))];
+}
+async function requireRoleMatches(user,roles){if(roles.includes(user.role))return true;const assigned=await assignedRoleCodesForUser(user);return assigned.some(role=>roles.includes(role));}
 function requireRole(...roles) {
-  return (req, res, next) => {
+  return async (req, res, next) => {
     if (!req.user) {
       if (req.path.startsWith("/api/")) return res.status(401).json({ error: "Please sign in." });
       return res.redirect(`/login.html?next=${encodeURIComponent(req.originalUrl)}`);
     }
-    if (!roles.includes(req.user.role)) return req.path.startsWith("/api/")
+    try{if(!await requireRoleMatches(req.user,roles))return req.path.startsWith("/api/")
       ? res.status(403).json({ error: "Your account does not have permission for this action." })
-      : res.status(403).send("You do not have permission to view this page.");
-    next();
+      : res.status(403).send("You do not have permission to view this page.");next();}catch(error){next(error)}
   };
 }
 app.use("/exam-mark-entry", requireRole("teacher"));
@@ -226,13 +235,12 @@ function keysForRole(role, roleTitle = "") {
   if (role === "admin") return [...ADMIN_KEYS];
   return [...(STAFF_KEYS_BY_ROLE[role] || STAFF_KEYS_BY_ROLE.staff)];
 }
-function allowedKeysForRole(user) {
+function profileStorageKeys(role){if(role==="finance")return FINANCE_STORAGE_KEYS;if(role==="teacher")return new Set(STAFF_KEYS_BY_ROLE.teacher);if(role==="content")return CONTENT_WRITE_KEYS;return new Set(STAFF_KEYS_BY_ROLE[role]||STAFF_KEYS_BY_ROLE.staff)}
+async function keysForUser(user){const keys=new Set(keysForRole(user.role,user.role_title));for(const role of await assignedRoleCodesForUser(user))for(const key of STAFF_KEYS_BY_ROLE[role]||[])keys.add(key);return [...keys]}
+async function allowedKeysForUser(user) {
   if (user.role === "owner") return OWNER_KEYS;
-  if (user.role === "admin") return ADMIN_KEYS;
-  if (user.role === "finance") return FINANCE_STORAGE_KEYS;
-  if (user.role === "teacher") return new Set(["dipvtc_marking_engine_v1"]);
-  if (user.role === "content") return CONTENT_WRITE_KEYS;
-  return new Set();
+  const allowed=user.role==="admin"?new Set(ADMIN_KEYS):user.role==="finance"?new Set(FINANCE_STORAGE_KEYS):user.role==="teacher"?new Set(["dipvtc_marking_engine_v1"]):user.role==="content"?new Set(CONTENT_WRITE_KEYS):new Set();
+  for(const role of await assignedRoleCodesForUser(user))for(const key of profileStorageKeys(role))allowed.add(key);return allowed;
 }
 function filterStaffState(snapshot, user) {
   if (!STAFF_ROLE_CODES.includes(user.role) || !snapshot.dipvtc_tasks) return snapshot;
@@ -267,7 +275,7 @@ async function stateSnapshot(keys) {
 function stateWithIdentity(snapshot, user) {
   const state = { ...snapshot };
   if (user) {
-    state.dipvtc_current = JSON.stringify({ id: user.id, name: user.display_name, email: user.email, role: user.role, roleTitle: user.role_title || "", section: user.section });
+    state.dipvtc_current = JSON.stringify({ id: user.id, name: user.display_name, email: user.email, role: user.role, roleTitle: user.role_title || "", section: user.section, assignedRoles:user.assignedRoles||[] });
     if (user.role === "owner" && !state.dipvtc_owner) state.dipvtc_owner = user.display_name;
   }
   return state;
@@ -275,10 +283,11 @@ function stateWithIdentity(snapshot, user) {
 async function renderHtml(fileName, user, res) {
   const filePath = path.join(publicRoot, fileName);
   let html = await fs.readFile(filePath, "utf8");
-  const keys = user ? keysForRole(user.role) : [...PUBLIC_KEYS];
-  const snapshot = filterStaffState(await stateSnapshot(keys), user || {});
-  const state = stateWithIdentity(snapshot, user);
-  const userPayload = user ? { id: user.id, name: user.display_name, email: user.email, role: user.role, roleTitle: user.role_title || "", section: user.section } : null;
+  const scopedUser=user?{...user,assignedRoles:await assignedRoleNamesForUser(user)}:null;
+  const keys = scopedUser ? await keysForUser(scopedUser) : [...PUBLIC_KEYS];
+  const snapshot = filterStaffState(await stateSnapshot(keys), scopedUser || {});
+  const state = stateWithIdentity(snapshot, scopedUser);
+  const userPayload = scopedUser ? { id: scopedUser.id, name: scopedUser.display_name, email: scopedUser.email, role: scopedUser.role, roleTitle: scopedUser.role_title || "", section: scopedUser.section, assignedRoles:scopedUser.assignedRoles } : null;
   const bootstrap = `<script>window.__DIPVTC_STATE__=${safeJsonForScript(state)};window.__DIPVTC_USER__=${safeJsonForScript(userPayload)};</script><script src="/server-storage.js"></script>`;
   html = html.replace(/\blocalStorage\b/g, "window.dipvtcStore").replace(/<script\b/i, `${bootstrap}<script`);
   if (user) res.setHeader("Cache-Control", "no-store");
@@ -458,11 +467,11 @@ app.get("/api/admin/password-reset/requests",requireRole("owner","admin","admiss
 app.post("/api/admin/password-reset/:id/issue",requireRole("owner","admin","admissions"),async(req,res,next)=>{const client=await pool.connect();try{await client.query("BEGIN");const q=await client.query("SELECT * FROM password_reset_requests WHERE id=$1 AND status='pending' FOR UPDATE",[req.params.id]);if(!q.rowCount)throw Object.assign(new Error("Request is no longer pending."),{status:404});const u=await client.query("SELECT id,email,display_name,role FROM app_users WHERE email=$1 AND active=TRUE",[q.rows[0].email]);if(!u.rowCount)throw Object.assign(new Error("No active account matches this email."),{status:404});const raw=crypto.randomBytes(32).toString("base64url");await client.query("UPDATE password_reset_tokens SET used_at=NOW() WHERE user_id=$1 AND used_at IS NULL",[u.rows[0].id]);const tokenRow=await client.query("INSERT INTO password_reset_tokens(user_id,token_hash,issued_by,expires_at) VALUES($1,$2,$3,NOW()+INTERVAL '1 hour') RETURNING expires_at",[u.rows[0].id,crypto.createHash("sha256").update(raw).digest("hex"),req.user.id]);await client.query("UPDATE password_reset_requests SET status='issued',resolved_by=$2,resolved_at=NOW() WHERE id=$1",[req.params.id,req.user.id]);await client.query("INSERT INTO app_audit_log(user_id,action,target_key) VALUES($1,'password-reset-issued',$2)",[req.user.id,q.rows[0].email]);await client.query("COMMIT");try{await mailer.sendAccountEmail({to:u.rows[0].email,name:u.rows[0].display_name,role:u.rows[0].role,kind:"password-reset",expiresAt:tokenRow.rows[0].expires_at,url:publicUrl(req,`/password-reset.html?token=${encodeURIComponent(raw)}`)});res.json({emailSent:true});}catch(mailError){await pool.query("UPDATE password_reset_tokens SET used_at=NOW() WHERE user_id=$1 AND used_at IS NULL AND created_at>NOW()-INTERVAL '2 minutes'",[u.rows[0].id]).catch(()=>{});await pool.query("UPDATE password_reset_requests SET status='pending',resolved_by=NULL,resolved_at=NULL WHERE id=$1",[req.params.id]).catch(()=>{});console.warn("Password reset email failed:",mailError.code||"SMTP error");res.status(503).json({error:"The password-reset email could not be sent. Check email settings and try again."});}}catch(e){await client.query("ROLLBACK").catch(()=>{});next(e);}finally{client.release();}});
 app.post("/api/auth/password-reset/complete",async(req,res,next)=>{const token=String(req.body?.token||""),pass=req.body?.password;if(!token||token.length>100||!validPassword(pass))return res.status(400).json({error:"Use a valid reset link and a password with at least 10 characters."});const client=await pool.connect();try{await client.query("BEGIN");const hash=crypto.createHash("sha256").update(token).digest("hex");const r=await client.query("SELECT id,user_id FROM password_reset_tokens WHERE token_hash=$1 AND used_at IS NULL AND expires_at>NOW() FOR UPDATE",[hash]);if(!r.rowCount)throw Object.assign(new Error("This reset link is invalid, expired or already used."),{status:404});await client.query("UPDATE app_users SET password_hash=$2,updated_at=NOW() WHERE id=$1",[r.rows[0].user_id,await passwordHash(pass)]);await client.query("UPDATE password_reset_tokens SET used_at=NOW() WHERE id=$1",[r.rows[0].id]);await client.query("DELETE FROM app_sessions WHERE user_id=$1",[r.rows[0].user_id]);await client.query("INSERT INTO app_audit_log(user_id,action) VALUES($1,'password-reset-complete')",[r.rows[0].user_id]);await client.query("COMMIT");res.json({ok:true});}catch(e){await client.query("ROLLBACK").catch(()=>{});next(e);}finally{client.release();}});
 
-app.post("/api/portal/attendance",requireRole("owner","admin","principal","teacher","admissions"),async(req,res,next)=>{const date=String(req.body?.date||"");const rows=req.body?.entries;if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Array.isArray(rows)||rows.length>500)return res.status(400).json({error:"Provide a valid date and attendance list."});const client=await pool.connect();try{await client.query("BEGIN");for(const x of rows){if(!/^[0-9a-f-]{36}$/i.test(String(x.studentId||""))||!["present","absent","late","excused"].includes(x.status))continue;if(["teacher","admissions","principal"].includes(req.user.role)&&!/^(all sections?|whole school)$/i.test(String(req.user.section||""))){const scope=await client.query("SELECT c.name FROM students s JOIN classes c ON c.id=s.class_id WHERE s.id=$1",[x.studentId]);if(!scope.rowCount||scope.rows[0].name.toLowerCase()!==String(req.user.section||"").toLowerCase())continue;}await client.query(`INSERT INTO learner_attendance(student_id,attendance_date,status,note,recorded_by) VALUES($1,$2,$3,$4,$5) ON CONFLICT(student_id,attendance_date) DO UPDATE SET status=EXCLUDED.status,note=EXCLUDED.note,recorded_by=EXCLUDED.recorded_by`,[x.studentId,date,x.status,String(x.note||"").slice(0,500),req.user.id]);}await client.query("COMMIT");res.json({ok:true});}catch(e){await client.query("ROLLBACK").catch(()=>{});next(e);}finally{client.release();}});
-app.get("/api/portal/manage-data",requireRole("owner","admin","principal","teacher","admissions"),async(req,res,next)=>{try{const section=/^(all sections?|whole school)$/i.test(String(req.user.section||""))?null:req.user.section;const [classes,learners]=await Promise.all([pool.query("SELECT id,level,name FROM classes WHERE $1::text IS NULL OR LOWER(name)=LOWER($1) ORDER BY level,name",[section]),pool.query(`SELECT s.id,s.student_number,s.full_name,s.class_id,c.name AS class_name FROM students s LEFT JOIN classes c ON c.id=s.class_id WHERE s.active=TRUE AND ($1::text IS NULL OR LOWER(c.name)=LOWER($1)) ORDER BY c.name,s.full_name`,[section])]);res.json({classes:classes.rows,learners:learners.rows});}catch(e){next(e);}});
-app.post("/api/portal/items",requireRole("owner","admin","principal","teacher"),async(req,res,next)=>{const b=req.body||{},kind=String(b.kind||""),title=String(b.title||"").trim().slice(0,180),details=String(b.details||"").slice(0,8000),url=String(b.resourceUrl||"").trim().slice(0,1000),studentId=String(b.studentId||"");if(!["lesson","assignment","resource","announcement"].includes(kind)||title.length<2||(!b.classId&&!studentId))return res.status(400).json({error:"Select a class or learner and provide a title and item type."});if(url&&!/^https:\/\//i.test(url))return res.status(400).json({error:"Resource links must use HTTPS."});try{if(["teacher","principal"].includes(req.user.role)&&b.classId){const c=await pool.query("SELECT name FROM classes WHERE id=$1",[b.classId]);if(!c.rowCount||(!/^(all sections?|whole school)$/i.test(String(req.user.section||""))&&c.rows[0].name.toLowerCase()!==String(req.user.section||"").toLowerCase()))return res.status(403).json({error:"This teacher is outside the assigned class scope."});}const r=await pool.query("INSERT INTO learner_learning_items(class_id,student_id,kind,title,details,due_date,resource_url,published,created_by) VALUES($1,$2,$3,$4,$5,NULLIF($6,'')::date,$7,$8,$9) RETURNING id",[b.classId||null,studentId||null,kind,title,details,String(b.dueDate||""),url,b.published!==false,req.user.id]);res.status(201).json({id:r.rows[0].id});}catch(e){next(e);}});
+app.post("/api/portal/attendance",requireRole("owner","admin","principal","teacher","admissions"),async(req,res,next)=>{const date=String(req.body?.date||"");const rows=req.body?.entries;if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Array.isArray(rows)||rows.length>500)return res.status(400).json({error:"Provide a valid date and attendance list."});const client=await pool.connect();try{await client.query("BEGIN");const responsibilities=[req.user.role,...await assignedRoleCodesForUser(req.user)];for(const x of rows){if(!/^[0-9a-f-]{36}$/i.test(String(x.studentId||""))||!["present","absent","late","excused"].includes(x.status))continue;if(responsibilities.some(role=>["teacher","admissions","principal"].includes(role))&&!responsibilities.includes("principal")&&!/^(all sections?|whole school)$/i.test(String(req.user.section||""))){const scope=await client.query("SELECT c.name FROM students s JOIN classes c ON c.id=s.class_id WHERE s.id=$1",[x.studentId]);if(!scope.rowCount||scope.rows[0].name.toLowerCase()!==String(req.user.section||"").toLowerCase())continue;}await client.query(`INSERT INTO learner_attendance(student_id,attendance_date,status,note,recorded_by) VALUES($1,$2,$3,$4,$5) ON CONFLICT(student_id,attendance_date) DO UPDATE SET status=EXCLUDED.status,note=EXCLUDED.note,recorded_by=EXCLUDED.recorded_by`,[x.studentId,date,x.status,String(x.note||"").slice(0,500),req.user.id]);}await client.query("COMMIT");res.json({ok:true});}catch(e){await client.query("ROLLBACK").catch(()=>{});next(e);}finally{client.release();}});
+app.get("/api/portal/manage-data",requireRole("owner","admin","principal","teacher","admissions"),async(req,res,next)=>{try{const responsibilities=[req.user.role,...await assignedRoleCodesForUser(req.user)];const section=responsibilities.includes("principal")||/^(all sections?|whole school)$/i.test(String(req.user.section||""))?null:req.user.section;const [classes,learners]=await Promise.all([pool.query("SELECT id,level,name FROM classes WHERE $1::text IS NULL OR LOWER(name)=LOWER($1) ORDER BY level,name",[section]),pool.query(`SELECT s.id,s.student_number,s.full_name,s.class_id,c.name AS class_name FROM students s LEFT JOIN classes c ON c.id=s.class_id WHERE s.active=TRUE AND ($1::text IS NULL OR LOWER(c.name)=LOWER($1)) ORDER BY c.name,s.full_name`,[section])]);res.json({classes:classes.rows,learners:learners.rows});}catch(e){next(e);}});
+app.post("/api/portal/items",requireRole("owner","admin","principal","teacher"),async(req,res,next)=>{const b=req.body||{},kind=String(b.kind||""),title=String(b.title||"").trim().slice(0,180),details=String(b.details||"").slice(0,8000),url=String(b.resourceUrl||"").trim().slice(0,1000),studentId=String(b.studentId||"");if(!["lesson","assignment","resource","announcement"].includes(kind)||title.length<2||(!b.classId&&!studentId))return res.status(400).json({error:"Select a class or learner and provide a title and item type."});if(url&&!/^https:\/\//i.test(url))return res.status(400).json({error:"Resource links must use HTTPS."});try{const responsibilities=[req.user.role,...await assignedRoleCodesForUser(req.user)];if(responsibilities.some(role=>["teacher","principal"].includes(role))&&b.classId){const c=await pool.query("SELECT name FROM classes WHERE id=$1",[b.classId]);if(!c.rowCount||(!responsibilities.includes("principal")&&!/^(all sections?|whole school)$/i.test(String(req.user.section||""))&&c.rows[0].name.toLowerCase()!==String(req.user.section||"").toLowerCase()))return res.status(403).json({error:"This teacher is outside the assigned class scope."});}const r=await pool.query("INSERT INTO learner_learning_items(class_id,student_id,kind,title,details,due_date,resource_url,published,created_by) VALUES($1,$2,$3,$4,$5,NULLIF($6,'')::date,$7,$8,$9) RETURNING id",[b.classId||null,studentId||null,kind,title,details,String(b.dueDate||""),url,b.published!==false,req.user.id]);res.status(201).json({id:r.rows[0].id});}catch(e){next(e);}});
 
-app.post("/api/team/invites", requireRole("owner"), async (req, res, next) => {
+app.post("/api/team/invites", requireRole("owner","admin"), async (req, res, next) => {
   const email = String(req.body?.email || "").trim().toLowerCase();
   const displayName = String(req.body?.name || "").trim().slice(0, 180);
   const section = String(req.body?.section || "All Sections").trim().slice(0, 120) || "All Sections";
@@ -588,7 +597,7 @@ app.post("/api/auth/password", requireRole("owner"), async (req, res, next) => {
 });
 
 app.get("/api/state", requireRole("owner", "admin", ...STAFF_ROLE_CODES), async (req, res, next) => {
-  try { res.setHeader("Cache-Control", "no-store"); res.json({ state: stateWithIdentity(filterStaffState(await stateSnapshot(keysForRole(req.user.role, req.user.role_title)), req.user), req.user), user: req.user }); }
+  try { const scopedUser={...req.user,assignedRoles:await assignedRoleNamesForUser(req.user)};res.setHeader("Cache-Control", "no-store"); res.json({ state: stateWithIdentity(filterStaffState(await stateSnapshot(await keysForUser(scopedUser)), scopedUser), scopedUser), user: scopedUser }); }
   catch (error) { next(error); }
 });
 app.put("/api/state/batch", requireRole("owner", "admin", ...STAFF_ROLE_CODES), async (req, res, next) => {
@@ -596,7 +605,7 @@ app.put("/api/state/batch", requireRole("owner", "admin", ...STAFF_ROLE_CODES), 
   if (!entries || typeof entries !== "object" || Array.isArray(entries) || Object.keys(entries).length > 120) {
     return res.status(400).json({ error: "Invalid state update." });
   }
-  const allowed = allowedKeysForRole(req.user);
+  const allowed = await allowedKeysForUser(req.user);
   const invalid = Object.keys(entries).find(key => !allowed.has(key));
   if (invalid) return res.status(403).json({ error: `This account cannot update ${invalid}.` });
   const client = await pool.connect();
@@ -639,11 +648,11 @@ app.put("/api/state/batch", requireRole("owner", "admin", ...STAFF_ROLE_CODES), 
 app.get("/api/admin/campus-inspection",requireRole("owner","admin"),async(_req,res,next)=>{try{
   // Keep staff/tasks available even if an optional KPI table is unavailable on an older deployment.
   const [usersResult,stateResult,activityResult]=await Promise.all([
-    pool.query("SELECT id,email,display_name,role,role_title,section,active,created_at FROM app_users WHERE role NOT IN ('parent','student') ORDER BY active DESC,role,display_name"),
+    pool.query("SELECT id,email,display_name,role,role_title,section,active,created_at FROM app_users WHERE role NOT IN ('owner','parent','student') ORDER BY active DESC,role,display_name"),
     pool.query("SELECT value FROM site_state WHERE state_key='dipvtc_tasks'"),
     pool.query("SELECT a.id,a.action,a.target_key,a.created_at,u.display_name,u.email,u.role FROM app_audit_log a LEFT JOIN app_users u ON u.id=a.user_id ORDER BY a.id DESC LIMIT 150")
   ]);
-  let tasks=stateResult.rows[0]?.value??[];if(typeof tasks==="string"){try{tasks=JSON.parse(tasks)}catch{tasks=[]}}if(!Array.isArray(tasks))tasks=[];
+  let tasks=stateResult.rows[0]?.value??[];if(typeof tasks==="string"){try{tasks=JSON.parse(tasks)}catch{tasks=[]}}if(!Array.isArray(tasks))tasks=[];const owners=await pool.query("SELECT LOWER(email) AS email FROM app_users WHERE role='owner'");const ownerEmails=new Set(owners.rows.map(row=>row.email));tasks=tasks.filter(task=>!ownerEmails.has(String(task.to||"").toLowerCase())&&String(task.assigneeRole||"").toLowerCase()!=="owner");
   let metrics={};try{const m=await pool.query("SELECT (SELECT COUNT(*)::int FROM students WHERE active=TRUE) AS active_learners,(SELECT COUNT(*)::int FROM student_registration_requests WHERE status IN ('pending','in_review')) AS pending_applications,(SELECT COUNT(*)::int FROM learner_attendance WHERE attendance_date=CURRENT_DATE) AS attendance_today,(SELECT COUNT(*)::int FROM app_invites WHERE accepted_at IS NULL AND expires_at>NOW()) AS pending_staff_invites");metrics=m.rows[0]||{};}catch(error){metrics={metricsUnavailable:true};console.warn("Campus overview KPI query unavailable:",error.message)}
   res.setHeader("Cache-Control","no-store");res.json({users:usersResult.rows,tasks,activities:activityResult.rows,metrics});
 }catch(e){next(e);}});
@@ -668,10 +677,17 @@ app.post("/api/admin/teaching-assignments",requireRole("owner","admin"),async(re
     await client.query("INSERT INTO site_state(state_key,value,updated_by,updated_at) VALUES('dipvtc_course_teachers',$1::jsonb,$2,NOW()) ON CONFLICT(state_key) DO UPDATE SET value=EXCLUDED.value,updated_by=EXCLUDED.updated_by,updated_at=NOW()",[JSON.stringify(safeAssignments),req.user.id]);await client.query("INSERT INTO app_audit_log(user_id,action,target_key) VALUES($1,'teacher-subject-assigned',$2)",[req.user.id,(subject+" → "+teacher.rows[0].email).slice(0,120)]);await client.query("COMMIT");res.json({ok:true,assignments:safeAssignments});
   }catch(error){await client.query("ROLLBACK").catch(()=>{});next(error);}finally{client.release();}
 });
-app.post("/api/admin/teacher-roles",requireRole("owner","admin"),async(req,res,next)=>{
-  const email=String(req.body?.email||"").trim().toLowerCase(),label=String(req.body?.role||"").trim().toLowerCase(),details=STAFF_ROLE_LABELS.get(label);
-  if(!email||!details)return res.status(400).json({error:"Choose a teacher and one of the existing staff roles."});
-  try{const result=await pool.query("UPDATE app_users SET role=$1,role_title=$2,updated_at=NOW() WHERE LOWER(email)=LOWER($3) AND role='teacher' AND active=TRUE RETURNING id,email,display_name,role,role_title,section,active",[details.role,details.title,email]);if(!result.rowCount)return res.status(404).json({error:"That active teacher account was not found. Refresh the page and try again."});await pool.query("INSERT INTO app_audit_log(user_id,action,target_key) VALUES($1,'teacher-role-updated',$2)",[req.user.id,(result.rows[0].email+" → "+details.title).slice(0,120)]);res.json({ok:true,staff:result.rows[0]});}catch(error){next(error);}
+app.get("/api/admin/staff-role-assignments",requireRole("owner","admin"),async(_req,res,next)=>{try{
+  const [staffResult,stateResult]=await Promise.all([pool.query("SELECT id,email,display_name,role,role_title,section,active FROM app_users WHERE role NOT IN ('owner','admin','parent','student') ORDER BY active DESC,display_name,email"),pool.query("SELECT state_key,value FROM site_state WHERE state_key=ANY($1::text[])",[["dipvtc_roles_v2","dipvtc_staff_role_assignments"]])]);
+  const values=Object.fromEntries(stateResult.rows.map(row=>[row.state_key,row.value]));const parse=(value,fallback)=>{try{return typeof value==="string"?JSON.parse(value):value}catch{return fallback}};const profiles=parse(values.dipvtc_roles_v2,null);const sourceProfiles=profiles&&typeof profiles==="object"&&!Array.isArray(profiles)?profiles:Object.fromEntries([...new Map([...STAFF_ROLE_LABELS.values()].map(role=>[role.title,role])).keys()].map(name=>[name,{desc:"Staff responsibility",duties:[]}]));const safeProfiles=Object.fromEntries(Object.entries(sourceProfiles).filter(([name])=>STAFF_ROLE_LABELS.has(name.toLowerCase())));const assignments=parse(values.dipvtc_staff_role_assignments,{});res.setHeader("Cache-Control","no-store");res.json({staff:staffResult.rows,profiles:safeProfiles,assignments:assignments&&typeof assignments==="object"&&!Array.isArray(assignments)?assignments:{},positions:[...new Map([...STAFF_ROLE_LABELS.values()].map(role=>[role.title,role])).values()]});
+}catch(error){next(error);}});
+app.put("/api/admin/staff-role-assignments",requireRole("owner","admin"),async(req,res,next)=>{
+  const email=String(req.body?.email||"").trim().toLowerCase(),roles=Array.isArray(req.body?.roles)?[...new Set(req.body.roles.map(value=>String(value).trim()).filter(Boolean))].slice(0,20):null;if(!email||!roles)return res.status(400).json({error:"Choose a staff member and at least an empty role selection."});
+  const client=await pool.connect();try{await client.query("BEGIN");await client.query("SELECT pg_advisory_xact_lock(2010314)");const member=await client.query("SELECT id,email,display_name,role,role_title,section,active FROM app_users WHERE LOWER(email)=LOWER($1) AND active=TRUE AND role NOT IN ('owner','admin','parent','student')",[email]);if(!member.rowCount)throw Object.assign(new Error("Choose an active staff account. Owner, Admin, Parent and Student accounts cannot be assigned staff responsibilities."),{status:400});
+    const profileRow=await client.query("SELECT value FROM site_state WHERE state_key='dipvtc_roles_v2'");let profiles=profileRow.rows[0]?.value??{};if(typeof profiles==="string"){try{profiles=JSON.parse(profiles)}catch{profiles={}}}if(!profiles||typeof profiles!=="object"||Array.isArray(profiles))profiles={};const validProfiles=Object.keys(profiles).filter(name=>STAFF_ROLE_LABELS.has(name.toLowerCase()));const invalid=roles.find(role=>!validProfiles.includes(role));if(invalid)throw Object.assign(new Error("Select roles from the current Owner role list."),{status:400});
+    const assignmentRow=await client.query("SELECT value FROM site_state WHERE state_key='dipvtc_staff_role_assignments' FOR UPDATE");let assignments=assignmentRow.rows[0]?.value??{};if(typeof assignments==="string"){try{assignments=JSON.parse(assignments)}catch{assignments={}}}if(!assignments||typeof assignments!=="object"||Array.isArray(assignments))assignments={};assignments[member.rows[0].email.toLowerCase()]=roles;
+    await client.query("INSERT INTO site_state(state_key,value,updated_by,updated_at) VALUES('dipvtc_staff_role_assignments',$1::jsonb,$2,NOW()) ON CONFLICT(state_key) DO UPDATE SET value=EXCLUDED.value,updated_by=EXCLUDED.updated_by,updated_at=NOW()",[JSON.stringify(assignments),req.user.id]);await client.query("INSERT INTO app_audit_log(user_id,action,target_key) VALUES($1,'staff-responsibilities-updated',$2)",[req.user.id,(member.rows[0].email+" → "+(roles.join(", ")||"no additional roles")).slice(0,120)]);await client.query("COMMIT");res.json({ok:true,email:member.rows[0].email,roles});
+  }catch(error){await client.query("ROLLBACK").catch(()=>{});next(error);}finally{client.release();}
 });
 app.get("/api/staff/teaching-assignments",requireRole("teacher"),async(req,res,next)=>{try{
   const result=await pool.query("SELECT value FROM site_state WHERE state_key='dipvtc_course_teachers'");let assignments=result.rows[0]?.value??{};if(typeof assignments==="string"){try{assignments=JSON.parse(assignments)}catch{assignments={}}}if(!assignments||typeof assignments!=="object"||Array.isArray(assignments))assignments={};const subjects=Object.entries(assignments).filter(([,person])=>String(person?.email||"").toLowerCase()===req.user.email.toLowerCase()).map(([subject])=>subject);res.setHeader("Cache-Control","no-store");res.json({subjects});
@@ -679,7 +695,7 @@ app.get("/api/staff/teaching-assignments",requireRole("teacher"),async(req,res,n
 app.post("/api/admin/campus-tasks",requireRole("owner","admin"),async(req,res,next)=>{
   const b=req.body||{},to=String(b.to||"").trim().toLowerCase(),title=String(b.title||"").trim().slice(0,180),course=String(b.course||"Campus-wide").trim().slice(0,120),details=String(b.details||"").trim().slice(0,3000),deadline=String(b.deadline||"").trim();
   if(!to||title.length<3)return res.status(400).json({error:"Choose a staff member and enter a task title."});if(deadline&&!/^\d{4}-\d{2}-\d{2}$/.test(deadline))return res.status(400).json({error:"Enter a valid deadline."});
-  const client=await pool.connect();try{await client.query("BEGIN");const user=await client.query("SELECT email,display_name,role,role_title,section FROM app_users WHERE LOWER(email)=LOWER($1) AND active=TRUE AND role NOT IN ('parent','student')",[to]);if(!user.rowCount)throw Object.assign(new Error("Select an active staff or management account."),{status:400});await client.query("SELECT pg_advisory_xact_lock(2010312)");const saved=await client.query("SELECT value FROM site_state WHERE state_key='dipvtc_tasks' FOR UPDATE");let tasks=saved.rows[0]?.value??[];if(typeof tasks==="string"){try{tasks=JSON.parse(tasks)}catch{tasks=[]}}if(!Array.isArray(tasks))tasks=[];
+  const client=await pool.connect();try{await client.query("BEGIN");const user=await client.query("SELECT email,display_name,role,role_title,section FROM app_users WHERE LOWER(email)=LOWER($1) AND active=TRUE AND role NOT IN ('owner','parent','student')",[to]);if(!user.rowCount)throw Object.assign(new Error("Select an active staff or Admin account. The Owner is not assigned tasks."),{status:400});await client.query("SELECT pg_advisory_xact_lock(2010312)");const saved=await client.query("SELECT value FROM site_state WHERE state_key='dipvtc_tasks' FOR UPDATE");let tasks=saved.rows[0]?.value??[];if(typeof tasks==="string"){try{tasks=JSON.parse(tasks)}catch{tasks=[]}}if(!Array.isArray(tasks))tasks=[];
     const task={id:crypto.randomUUID(),to:user.rows[0].email,title,course,details,deadline,status:"assigned",assignedAt:new Date().toISOString(),assignedBy:req.user.email,assignedByName:req.user.display_name,assignedByRole:req.user.role,assigneeName:user.rows[0].display_name,assigneeRole:user.rows[0].role_title||user.rows[0].role,assigneeSection:user.rows[0].section,source:"campus-admin",requireCompletionNote:true};tasks.push(task);
     await client.query("INSERT INTO site_state(state_key,value,updated_by,updated_at) VALUES('dipvtc_tasks',$1::jsonb,$2,NOW()) ON CONFLICT(state_key) DO UPDATE SET value=EXCLUDED.value,updated_by=EXCLUDED.updated_by,updated_at=NOW()",[JSON.stringify(tasks),req.user.id]);await client.query("INSERT INTO app_audit_log(user_id,action,target_key) VALUES($1,'campus-task-assigned',$2)",[req.user.id,(task.id+': '+title).slice(0,120)]);await client.query("COMMIT");res.status(201).json({task});
   }catch(e){await client.query("ROLLBACK").catch(()=>{});next(e);}finally{client.release();}
@@ -725,7 +741,7 @@ app.get("/api/staff/marking", requireRole("teacher", "principal"), async (req, r
     if (!sessions.length) return res.json({ sessions: [], selectedSession: null, classes: [] });
     const requested = String(req.query.sessionId || "");
     const selectedSession = sessions.find(item => item.id === requested) || sessions[0];
-    const section = /^(all sections?|whole school)$/i.test(String(req.user.section || "")) ? null : req.user.section;
+    const responsibilities=[req.user.role,...await assignedRoleCodesForUser(req.user)];const section = responsibilities.includes("principal")||/^(all sections?|whole school)$/i.test(String(req.user.section || "")) ? null : req.user.section;
     const requestedClass = /^[0-9a-f-]{36}$/i.test(String(req.query.classId || "")) ? String(req.query.classId) : null;
     const result = await pool.query(
       `SELECT c.id AS class_id,c.name AS class_name,c.level,
