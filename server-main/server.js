@@ -700,10 +700,12 @@ app.put("/api/admin/staff-role-profiles",requireRole("owner","admin"),async(req,
   }catch(error){await client.query("ROLLBACK").catch(()=>{});next(error);}finally{client.release();}
 });
 app.post("/api/admin/campus-tasks",requireRole("owner","admin"),async(req,res,next)=>{
-  const b=req.body||{},to=String(b.to||"").trim().toLowerCase(),title=String(b.title||"").trim().slice(0,180),course=String(b.course||"Campus-wide").trim().slice(0,120),details=String(b.details||"").trim().slice(0,3000),deadline=String(b.deadline||"").trim();
-  if(!to||title.length<3)return res.status(400).json({error:"Choose a staff member and enter a task title."});if(deadline&&!/^\d{4}-\d{2}-\d{2}$/.test(deadline))return res.status(400).json({error:"Enter a valid deadline."});
+  const b=req.body||{},to=String(b.to||"").trim().toLowerCase(),title=String(b.title||"").trim().slice(0,180),course=String(b.course||"Campus-wide").trim().slice(0,120),rawDetails=String(b.details||"").trim().slice(0,2800),deadline=String(b.deadline||"").trim(),frequency=String(b.frequency||"once").trim().toLowerCase(),quantity=b.quantity===undefined?1:Number.parseInt(b.quantity,10),level=String(b.level||"").trim().slice(0,120),taskKind=String(b.taskKind||"Custom").trim().slice(0,80);
+  if(!to||title.length<3)return res.status(400).json({error:"Choose a staff member and enter a task title."});if(!["once","daily","weekly","monthly"].includes(frequency))return res.status(400).json({error:"Choose a valid task frequency."});if(!Number.isInteger(quantity)||quantity<1||quantity>500)return res.status(400).json({error:"Task quantity must be between 1 and 500."});if(deadline&&!/^\d{4}-\d{2}-\d{2}$/.test(deadline))return res.status(400).json({error:"Enter a valid deadline."});if(frequency!=="once"&&!deadline)return res.status(400).json({error:"Choose the first due date for a repeating task."});const scheduleNote=frequency==="once"?"":`
+
+Repeat ${frequency}; target ${quantity} ${taskKind.toLowerCase()}${level?` for ${level}`:""} each period.`;const details=(rawDetails+scheduleNote).slice(0,3000);
   const client=await pool.connect();try{await client.query("BEGIN");const user=await client.query("SELECT email,display_name,role,role_title,section FROM app_users WHERE LOWER(email)=LOWER($1) AND active=TRUE AND role NOT IN ('owner','parent','student')",[to]);if(!user.rowCount)throw Object.assign(new Error("Select an active staff or Admin account. The Owner is not assigned tasks."),{status:400});await client.query("SELECT pg_advisory_xact_lock(2010312)");const saved=await client.query("SELECT value FROM site_state WHERE state_key='dipvtc_tasks' FOR UPDATE");let tasks=saved.rows[0]?.value??[];if(typeof tasks==="string"){try{tasks=JSON.parse(tasks)}catch{tasks=[]}}if(!Array.isArray(tasks))tasks=[];
-    const task={id:crypto.randomUUID(),to:user.rows[0].email,title,course,details,deadline,status:"assigned",assignedAt:new Date().toISOString(),assignedBy:req.user.email,assignedByName:req.user.display_name,assignedByRole:req.user.role,assigneeName:user.rows[0].display_name,assigneeRole:user.rows[0].role_title||user.rows[0].role,assigneeSection:user.rows[0].section,source:"campus-admin",requireCompletionNote:true};tasks.push(task);
+    const repeat=frequency==="once"?null:{frequency,quantity,level,taskKind,seriesId:crypto.randomUUID(),occurrence:1};const task={id:crypto.randomUUID(),to:user.rows[0].email,title,course,details,deadline,status:"assigned",assignedAt:new Date().toISOString(),assignedBy:req.user.email,assignedByName:req.user.display_name,assignedByRole:req.user.role,assigneeName:user.rows[0].display_name,assigneeRole:user.rows[0].role_title||user.rows[0].role,assigneeSection:user.rows[0].section,source:"campus-admin",frequency,quantity,level,taskKind,repeat,requireCompletionNote:true};tasks.push(task);
     await client.query("INSERT INTO site_state(state_key,value,updated_by,updated_at) VALUES('dipvtc_tasks',$1::jsonb,$2,NOW()) ON CONFLICT(state_key) DO UPDATE SET value=EXCLUDED.value,updated_by=EXCLUDED.updated_by,updated_at=NOW()",[JSON.stringify(tasks),req.user.id]);await client.query("INSERT INTO app_audit_log(user_id,action,target_key) VALUES($1,'campus-task-assigned',$2)",[req.user.id,(task.id+': '+title).slice(0,120)]);await client.query("COMMIT");res.status(201).json({task});
   }catch(e){await client.query("ROLLBACK").catch(()=>{});next(e);}finally{client.release();}
 });
@@ -725,6 +727,7 @@ app.post("/api/staff/tasks/:taskId/complete", requireRole("admin",...STAFF_ROLE_
     task.completedAt = new Date().toISOString();
     task.completedNote = completionNote;
     task.completedBy = req.user.email;
+    let nextTask=null;if(task.repeat&&["daily","weekly","monthly"].includes(task.repeat.frequency)){const completedAt=new Date(task.completedAt),deadlineBase=task.deadline?new Date(`${String(task.deadline).slice(0,10)}T00:00:00.000Z`):completedAt,anchor=deadlineBase>completedAt?deadlineBase:completedAt,nextDue=new Date(anchor);if(task.repeat.frequency==="daily")nextDue.setUTCDate(nextDue.getUTCDate()+1);else if(task.repeat.frequency==="weekly")nextDue.setUTCDate(nextDue.getUTCDate()+7);else{const day=nextDue.getUTCDate();nextDue.setUTCDate(1);nextDue.setUTCMonth(nextDue.getUTCMonth()+1);const daysInMonth=new Date(Date.UTC(nextDue.getUTCFullYear(),nextDue.getUTCMonth()+1,0)).getUTCDate();nextDue.setUTCDate(Math.min(day,daysInMonth));}const nextOccurrence=(Number(task.repeat.occurrence)||1)+1;nextTask={...task,id:crypto.randomUUID(),status:"assigned",assignedAt:new Date().toISOString(),deadline:nextDue.toISOString().slice(0,10),repeat:{...task.repeat,occurrence:nextOccurrence},completedAt:undefined,completedNote:undefined,completedBy:undefined,parentTaskId:task.id,source:"campus-admin-recurring"};tasks.push(nextTask);}
     await client.query(
       `INSERT INTO site_state(state_key,value,updated_by,updated_at) VALUES('dipvtc_tasks',$1::jsonb,$2,NOW())
        ON CONFLICT(state_key) DO UPDATE SET value=EXCLUDED.value,updated_by=EXCLUDED.updated_by,updated_at=NOW()`,
@@ -732,7 +735,7 @@ app.post("/api/staff/tasks/:taskId/complete", requireRole("admin",...STAFF_ROLE_
     );
     await client.query("INSERT INTO app_audit_log(user_id,action,target_key) VALUES($1,'task-complete',$2)", [req.user.id, String(task.title||task.id).slice(0,120)]);
     await client.query("COMMIT");
-    res.json({ ok: true });
+    res.json({ ok: true, nextTask });
   } catch (error) {
     await client.query("ROLLBACK").catch(() => {});
     next(error);
