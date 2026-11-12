@@ -661,7 +661,7 @@ app.put("/api/state/batch", requireRole("owner", "admin", ...STAFF_ROLE_CODES), 
     for (const [key, value] of Object.entries(entries)) {
       if (value === null) await client.query("DELETE FROM site_state WHERE state_key=$1", [key]);
       else {
-        if (typeof value !== "string" || value.length > 2_000_000) throw Object.assign(new Error("Invalid or oversized state value."), { status: 413 });
+        if (typeof value !== "string" || value.length > 6_000_000) throw Object.assign(new Error("Invalid or oversized state value."), { status: 413 });
         await client.query(
           `INSERT INTO site_state(state_key,value,updated_by,updated_at) VALUES($1,$2::jsonb,$3,NOW())
            ON CONFLICT(state_key) DO UPDATE SET value=EXCLUDED.value,updated_by=EXCLUDED.updated_by,updated_at=NOW()`,
