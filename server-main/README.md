@@ -7,7 +7,7 @@ The root website files are the source. `npm run build:site` copies them into `se
 1. Install Node.js 20 or newer and PostgreSQL.
 2. Create a PostgreSQL database named `dipvtc` (or choose another name).
 3. Copy `.env.example` to `.env`. Set `DATABASE_URL` to the local database and enter an owner email and a private password of at least 10 characters in `INITIAL_OWNER_EMAIL`, `INITIAL_OWNER_NAME` and `INITIAL_OWNER_PASSWORD`. Optionally configure an administrator account with the `INITIAL_ADMIN_*` fields.
-4. Apply `database/001_initial_academic_schema.sql` through `database/006_student_ids_and_health_information.sql` in order to that database.
+4. Apply the numbered migrations in order. The current schema reaches `database/009_zimsec_teacher_class_assignments.sql`.
 5. Run `npm install`, `npm run build:site`, then `npm start` from the website root.
 6. Open `http://127.0.0.1:3000`. Staff Login leads to the shared staff dashboard. Admin / Owner Login routes each account to its matching dashboard. The Owner page's Main Admin button opens Admin.
 
@@ -59,3 +59,7 @@ Apply `database/008_learning_media_and_html_requests.sql` after migration 007. T
 The teacher HTML option currently records an audited request containing the class, task title, file name and teacher note. It does not upload, store, or execute the selected HTML file. The later HTML activity connection remains a separate stage.
 
 Teacher question pasting accepts numbered headings such as `Q1:` or `1.`, choices such as `A) ...`, and optional `Answer: B` / `Marks: 2` lines. Teachers can edit parsed items, attach media to a specific item, preview, then publish.
+
+### ZIMSEC teacher class allocations
+
+Apply `database/009_zimsec_teacher_class_assignments.sql` after migrations 001–008 to the DIPVTC database. It seeds the canonical ZIMSEC classes, links existing ZIMSEC learner records and class content to the canonical class names, and creates the Owner/Main Admin managed teacher assignment table. Primary lead-class assignments automatically include the six core subjects. This migration and the new assignment controls are ZIMSEC-only.
