@@ -741,6 +741,19 @@ app.get("/api/staff/teaching-assignments",requireRole("teacher"),async(req,res,n
 // ZIMSEC class-scoped teacher allocations are separate from broad course
 // assignments so a primary homeroom and secondary subject coverage can coexist.
 app.get("/api/admin/zimsec-class-assignments",requireRole("owner","admin"),async(_req,res,next)=>{try{
+  // Keep the assignment pickers usable even when a deployment's database was
+  // created before the ZIMSEC class migration was applied. This is idempotent
+  // and uses the same canonical rows as migration 009.
+  await pool.query(`INSERT INTO classes(level,name) VALUES
+    ('primary','zimsec · ECD-A'),('primary','zimsec · ECD-B'),
+    ('primary','zimsec · Grade 1'),('primary','zimsec · Grade 2'),
+    ('primary','zimsec · Grade 3'),('primary','zimsec · Grade 4'),
+    ('primary','zimsec · Grade 5'),('primary','zimsec · Grade 6'),
+    ('primary','zimsec · Grade 7'),
+    ('secondary','zimsec · Form 1'),('secondary','zimsec · Form 2'),
+    ('secondary','zimsec · Form 3'),('secondary','zimsec · Form 4'),
+    ('secondary','zimsec · Lower 6'),('secondary','zimsec · Upper 6')
+    ON CONFLICT(level,name) DO NOTHING`);
   const [teachers,classes,assignments]=await Promise.all([
     pool.query("SELECT id,email,display_name,active FROM app_users WHERE role='teacher' AND active=TRUE ORDER BY display_name,email"),
     pool.query("SELECT id,level,name FROM classes WHERE LOWER(name) LIKE 'zimsec · %' ORDER BY CASE level WHEN 'primary' THEN 0 ELSE 1 END,name"),
