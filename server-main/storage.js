@@ -11,6 +11,7 @@
       return typeof value === "string" ? value : JSON.stringify(value);
     },
     setItem(key, value) { state[String(key)] = String(value); queue(String(key), String(value)); },
+    setServerItem(key, value) { const name=String(key), serialized=String(value); state[name]=serialized; pending.delete(name); },
     removeItem(key) { delete state[String(key)]; queue(String(key), null); },
     key(index) { return Object.keys(state)[index] ?? null; },
     flush() { clearTimeout(timer); return flush(); },
