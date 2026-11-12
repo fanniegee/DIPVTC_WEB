@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1400 320" role="img" aria-labelledby="title desc">
+  <title id="title">Double Impact Private College</title>
+  <desc id="desc">School banner with the college tree emblem, name and motto</desc>
+  <defs><clipPath id="tree-crop"><rect x="0" y="0" width="198" height="320"/></clipPath></defs>
+  <rect width="1400" height="320" fill="#fff"/>
+  <rect x="0" y="0" width="1400" height="9" fill="#f3d98f"/>
+  <image href="/exam-mark-entry/assets/school-logo.png" x="0" y="-5" width="460" height="312" preserveAspectRatio="none" clip-path="url(#tree-crop)"/>
+  <path d="M218 36v248" stroke="#e7c772" stroke-width="4"/>
+  <text x="258" y="150" font-family="Georgia,serif" font-size="94" font-weight="700" fill="#1b2055" letter-spacing="1">DOUBLE <tspan fill="#edcf80">IMPACT</tspan></text>
+  <text x="266" y="210" font-family="Georgia,serif" font-size="38" fill="#1b2055" letter-spacing="18">PRIVATE COLLEGE</text>
+  <text x="266" y="263" font-family="Georgia,serif" font-size="22" font-style="italic" fill="#4a4a4a">The empire of excellence · Your success is our priority</text>
+</svg>
