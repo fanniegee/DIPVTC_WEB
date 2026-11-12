@@ -223,7 +223,7 @@ function assignedRoleNamesForUser(user) {
 async function assignedRoleCodesForUser(user) {
   const names=await assignedRoleNamesForUser(user);return [...new Set(names.map(name=>STAFF_ROLE_LABELS.get(name.trim().toLowerCase())?.role).filter(Boolean))];
 }
-async function requireRoleMatches(user,roles){if(roles.includes(user.role))return true;const assigned=await assignedRoleCodesForUser(user);return assigned.some(role=>roles.includes(role));}
+async function requireRoleMatches(user,roles){const actual=String(user.role||"").trim().toLowerCase();if(roles.some(role=>String(role).trim().toLowerCase()===actual))return true;const assigned=await assignedRoleCodesForUser(user);return assigned.some(role=>roles.includes(role));}
 function requireRole(...roles) {
   return async (req, res, next) => {
     if (!req.user) {
