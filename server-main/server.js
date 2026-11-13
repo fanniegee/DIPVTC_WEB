@@ -28,7 +28,7 @@ const OWNER_KEYS = new Set([
   "dipvtc_applications", "dipvtc_calendar", "dipvtc_campus_timetable", "dipvtc_changelog",
   "di_expenses", "di_fees", "di_payments", "di_school", "di_students",
   "dipvtc_contacts_v2", "dipvtc_course_teachers", "dipvtc_courses", "dipvtc_enquiries",
-  "dipvtc_fees", "dipvtc_invoices", "dipvtc_news", "dipvtc_news_text", "dipvtc_news_title",
+  "dipvtc_fees", "dipvtc_school_price_rules", "dipvtc_invoices", "dipvtc_news", "dipvtc_news_text", "dipvtc_news_title",
   "dipvtc_online_timetable", "dipvtc_owner", "dipvtc_pathways_v2", "dipvtc_payments",
   "dipvtc_programs_schools", "dipvtc_programs_title", "dipvtc_pupils", "dipvtc_replies",
   "dipvtc_roles_v2", "dipvtc_sa_ecd", "dipvtc_sa_fet", "dipvtc_sa_found", "dipvtc_sa_inter",
@@ -40,7 +40,7 @@ const OWNER_KEYS = new Set([
   "dipvtc_site_whatsapp", "dipvtc_site_phones", "dipvtc_students", "dipvtc_subjects_image_boxes",
   "dipvtc_tasks", "dipvtc_team", "dipvtc_usd_rate", "dipvtc_welcome_text", "dipvtc_welcome_title"
 ]);
-const ADMIN_KEYS = new Set(["dipvtc_courses", "dipvtc_students", "dipvtc_enquiries", "dipvtc_applications", "dipvtc_fees", "dipvtc_usd_rate"]);
+const ADMIN_KEYS = new Set(["dipvtc_courses", "dipvtc_students", "dipvtc_enquiries", "dipvtc_applications", "dipvtc_fees", "dipvtc_usd_rate", "dipvtc_school_price_rules"]);
 const STAFF_ROLE_CODES = ["principal", "teacher", "admissions", "finance", "content", "front_desk", "driver", "staff"];
 const ADMISSION_SCHOOLS = [
   { code: "cambridge", name: "Cambridge", classes: [
@@ -373,7 +373,7 @@ app.get("/api/admissions/learners",requireRole("owner","admin","admissions"),asy
 });
 
 app.get("/api/admissions/registration-requests",requireRole("owner","admin","admissions"),async(_req,res,next)=>{
-  try{const r=await pool.query("SELECT id,student_number,student_name,student_email,school_code,intended_class,academic_level,date_of_birth,guardian_name,guardian_email,guardian_phone,notes,status,submitted_at,health_condition_status,health_conditions,health_condition_other,has_allergies,allergies,allergy_other,doctor_name,doctor_clinic,doctor_phone,doctor_email,doctor_address,health_notes,family_rules_signer_name,family_rules_signer_role,family_rules_signature,family_rules_signed_at,family_rules_version FROM student_registration_requests WHERE status IN ('pending','in_review') ORDER BY submitted_at DESC");const requests=r.rows.map(x=>({...x,school_name:ADMISSION_SCHOOLS.find(s=>s.code===x.school_code)?.name||x.school_code}));res.setHeader("Cache-Control","no-store");res.json({requests});}catch(e){next(e);}
+  try{const r=await pool.query("SELECT id,student_number,student_name,student_email,school_code,intended_class,academic_level,date_of_birth,guardian_name,guardian_email,guardian_phone,notes,status,submitted_at,health_condition_status,health_conditions,health_condition_other,has_allergies,allergies,allergy_other,doctor_name,doctor_clinic,doctor_phone,doctor_email,doctor_address,health_notes,family_rules_signer_name,family_rules_signer_role,family_rules_signer_id,family_rules_signature,family_rules_signed_at,family_rules_version FROM student_registration_requests WHERE status IN ('pending','in_review') ORDER BY submitted_at DESC");const requests=r.rows.map(x=>({...x,school_name:ADMISSION_SCHOOLS.find(s=>s.code===x.school_code)?.name||x.school_code}));res.setHeader("Cache-Control","no-store");res.json({requests});}catch(e){next(e);}
 });
 
 app.put("/api/admissions/registration-requests/:id",requireRole("owner","admin","admissions"),async(req,res,next)=>{
@@ -909,16 +909,18 @@ app.post("/api/enquiries", async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-app.get("/api/public/admission-options", (_req,res)=>res.json({schools:ADMISSION_SCHOOLS}));
+const DEFAULT_SCHOOL_PRICE_RULES={schoolFeeMonthly:1500,termMonths:4,primaryBoardingMonthly:3500,highSchoolBoardingMonthly:3500,dueDay:1,finalDueDay:3,lateInterestPercent:15,uniformPenalty:100,dayRegistrationAnnual:500,boardingRegistrationAnnual:800};
+function decodeStoredState(value,fallback){if(value===undefined||value===null)return fallback;if(typeof value!=='string')return value;try{return JSON.parse(value)}catch{return fallback}}
+app.get("/api/public/admission-options",async(_req,res,next)=>{try{const r=await pool.query("SELECT state_key,value FROM site_state WHERE state_key=ANY($1::text[])",[["dipvtc_school_price_rules","dipvtc_fees"]]);const saved=Object.fromEntries(r.rows.map(row=>[row.state_key,row.value]));const feeRules={...DEFAULT_SCHOOL_PRICE_RULES,...(decodeStoredState(saved.dipvtc_school_price_rules,{})||{})};const fees=decodeStoredState(saved.dipvtc_fees,[]);res.setHeader("Cache-Control","no-store");res.json({schools:ADMISSION_SCHOOLS,feeRules,fees:Array.isArray(fees)?fees:[]});}catch(error){next(error)}});
 app.post("/api/student-registrations",async(req,res,next)=>{
   const b=req.body||{};
   if(String(b.website||"").trim())return res.status(201).json({ok:true});
   const studentName=String(b.studentName||"").trim().slice(0,180),studentEmail=String(b.studentEmail||"").trim().toLowerCase(),password=b.password,schoolCode=String(b.schoolCode||""),className=String(b.className||"");
   const school=ADMISSION_SCHOOLS.find(x=>x.code===schoolCode),classChoice=school?.classes.find(x=>x.name===className);
   const guardianName=String(b.guardianName||"").trim().slice(0,180),guardianEmail=String(b.guardianEmail||"").trim().toLowerCase(),guardianPhone=String(b.guardianPhone||"").trim().slice(0,40),dateOfBirth=String(b.dateOfBirth||"").trim(),notes=String(b.notes||"").trim().slice(0,1500);
-  const rulesSigner=String(b.familyRulesSignerName||"").trim().slice(0,180),rulesRole=String(b.familyRulesSignerRole||""),rulesSignature=String(b.familyRulesSignature||""),rulesVersion=String(b.familyRulesVersion||"");
+  const rulesSigner=String(b.familyRulesSignerName||"").trim().slice(0,180),rulesSignerId=String(b.familyRulesSignerId||"").trim().slice(0,80),rulesRole=String(b.familyRulesSignerRole||""),rulesSignature=String(b.familyRulesSignature||""),rulesVersion=String(b.familyRulesVersion||"");
   let signerAge=-1;if(/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)){const [year,month,day]=dateOfBirth.split("-").map(Number),birth=new Date(Date.UTC(year,month-1,day));if(birth.getUTCFullYear()===year&&birth.getUTCMonth()===month-1&&birth.getUTCDate()===day){const now=new Date();signerAge=now.getUTCFullYear()-year;if(now.getUTCMonth()<month-1||(now.getUTCMonth()===month-1&&now.getUTCDate()<day))signerAge--;}}
-  if(b.familyRulesAccepted!==true||rulesSigner.length<2||!["parent_guardian","adult_student"].includes(rulesRole)||(rulesRole==="adult_student"&&signerAge<18)||rulesVersion!=="DIPVTC-SCHOOL-RULES-2026-01"||rulesSignature.length>200000||!/^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(rulesSignature))return res.status(400).json({error:"Read and accept the current School Rules, enter the signer’s name, and add a valid signature before applying. Learners under 18 need a parent or guardian to sign."});
+  if(b.familyRulesAccepted!==true||rulesSigner.length<2||!["parent_guardian","adult_student"].includes(rulesRole)||(rulesRole==="adult_student"&&signerAge<18)||rulesVersion!=="DIPVTC-SCHOOL-RULES-2026-02"||rulesSignature.length>200000||!/^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(rulesSignature))return res.status(400).json({error:"Read and accept the current School Rules, enter the signer’s name, and add a valid signature before applying. Learners under 18 need a parent or guardian to sign."});
   if(studentName.length<2||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(studentEmail)||studentEmail.length>254||!validPassword(password)||!school||!classChoice||guardianEmail&&(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guardianEmail)||guardianEmail.length>254)||guardianName.length>180||guardianPhone.length>40||dateOfBirth&&!/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth))return res.status(400).json({error:"Complete the student email, password, learner name, school and intended class. Check optional guardian details too."});
   if(guardianEmail===studentEmail)return res.status(400).json({error:"Use the student’s own email in the student email field. A guardian can use a separate email."});
   const parsedHealth=parseHealthInformation(b);if(parsedHealth.error)return res.status(400).json({error:parsedHealth.error});const h=parsedHealth.value;
@@ -929,8 +931,8 @@ app.post("/api/student-registrations",async(req,res,next)=>{
     if(existing.rowCount)throw Object.assign(new Error("This email already has an account or registration request. Use the portal sign-in or contact Admissions."),{status:409});
     const user=await client.query("INSERT INTO app_users(email,display_name,role,section,password_hash,active) VALUES($1,$2,'student','All Sections',$3,FALSE) RETURNING id",[studentEmail,studentName,await passwordHash(password)]);
     const studentNumber=await nextStudentNumber(client);
-    const request=await client.query("INSERT INTO student_registration_requests(student_user_id,student_name,student_email,school_code,intended_class,academic_level,date_of_birth,guardian_name,guardian_email,guardian_phone,notes,student_number,health_condition_status,health_conditions,health_condition_other,has_allergies,allergies,allergy_other,doctor_name,doctor_clinic,doctor_phone,doctor_email,doctor_address,health_notes,family_rules_signer_name,family_rules_signer_role,family_rules_signature,family_rules_signed_at,family_rules_version) VALUES($1,$2,$3,$4,$5,$6,NULLIF($7,'')::date,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,NOW(),$28) RETURNING id,student_number",
-      [user.rows[0].id,studentName,studentEmail,school.code,classChoice.name,classChoice.academicLevel,dateOfBirth,guardianName,guardianEmail,guardianPhone,notes,studentNumber,h.healthConditionStatus,h.healthConditions,h.healthConditionOther,h.hasAllergies,h.allergies,h.allergyOther,h.doctorName,h.doctorClinic,h.doctorPhone,h.doctorEmail,h.doctorAddress,h.healthNotes,rulesSigner,rulesRole,rulesSignature,rulesVersion]);
+    const request=await client.query("INSERT INTO student_registration_requests(student_user_id,student_name,student_email,school_code,intended_class,academic_level,date_of_birth,guardian_name,guardian_email,guardian_phone,notes,student_number,health_condition_status,health_conditions,health_condition_other,has_allergies,allergies,allergy_other,doctor_name,doctor_clinic,doctor_phone,doctor_email,doctor_address,health_notes,family_rules_signer_name,family_rules_signer_role,family_rules_signer_id,family_rules_signature,family_rules_signed_at,family_rules_version) VALUES($1,$2,$3,$4,$5,$6,NULLIF($7,'')::date,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,NOW(),$29) RETURNING id,student_number",
+      [user.rows[0].id,studentName,studentEmail,school.code,classChoice.name,classChoice.academicLevel,dateOfBirth,guardianName,guardianEmail,guardianPhone,notes,studentNumber,h.healthConditionStatus,h.healthConditions,h.healthConditionOther,h.hasAllergies,h.allergies,h.allergyOther,h.doctorName,h.doctorClinic,h.doctorPhone,h.doctorEmail,h.doctorAddress,h.healthNotes,rulesSigner,rulesRole,rulesSignerId,rulesSignature,rulesVersion]);
     await client.query("INSERT INTO app_audit_log(user_id,action,target_key) VALUES($1,'family-rules-signed',$2)",[user.rows[0].id,rulesVersion]);
     await client.query("COMMIT");
     let emailSent=false;try{await mailer.sendRegistrationStatus({to:studentEmail,name:studentName,status:"pending",school:school.name,intendedClass:classChoice.name,studentNumber:studentNumber});emailSent=true;}catch(e){console.warn("Student application receipt email failed:",e.code||"email transport error");}
