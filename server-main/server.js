@@ -327,6 +327,7 @@ app.post("/api/auth/login", async (req, res, next) => {
     if (portal === "/staff.html" && !STAFF_ROLE_CODES.includes(user.role)) return res.status(403).json({ error: "Use the Admin / Owner Login for management accounts." });
     if (portal === "/admin.html" && !["owner", "admin"].includes(user.role)) return res.status(403).json({ error: "Staff accounts must use Staff Login." });
     if (portal === "/owner.html" && user.role !== "owner") return res.status(403).json({ error: "This account cannot open the Owner panel." });
+    if (portal === "/payment-review.html" && !["owner","admin","finance"].includes(user.role)) return res.status(403).json({ error: "Payment approvals are available to Owner, Main Admin and Finance accounts." });
     if (portal === "/parent-portal.html" && user.role !== "parent") return res.status(403).json({ error: "Use the Parent Portal sign-in for a Parent account." });
     if (portal === "/student-portal.html" && user.role !== "student") return res.status(403).json({ error: "Use the Student Portal sign-in for a Student account." });
     const token = crypto.randomBytes(32).toString("base64url");
