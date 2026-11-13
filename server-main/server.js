@@ -208,7 +208,7 @@ async function authenticate(req, res, next) {
 }
 app.use((req, res, next) => {
   const needsSession = req.path === "/owner.html" || req.path === "/admin.html" || req.path === "/staff.html" || req.path === "/fees.html" || req.path === "/fees.htm" || req.path === "/assets/fees.html" || req.path.startsWith("/exam-mark-entry") ||
-    req.path === "/registrations.html" || req.path === "/learning.html" || req.path === "/parent-portal.html" || req.path === "/student-portal.html" ||
+    req.path === "/registrations.html" || req.path === "/learning.html" || req.path === "/parent-portal.html" || req.path === "/student-portal.html" || req.path === "/payment-review.html" ||
     req.path.startsWith("/api/state") || req.path === "/api/auth/password" || req.path.startsWith("/api/team/invites") || req.path.startsWith("/api/staff/") ||
     req.path.startsWith("/api/admissions/") || req.path.startsWith("/api/portal/") || req.path.startsWith("/api/admin/");
   if (!needsSession) return next();
