@@ -65,7 +65,7 @@
     .social-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
     .social-card{display:block;overflow:hidden;padding:0;background:#fff;border:1px solid var(--line);border-radius:19px;box-shadow:0 9px 24px #0a193110}
     .social-top{display:flex;align-items:center;gap:10px;padding:14px;min-width:0}
-    .social-top .social-mark{flex:none}.social-top .social-copy{min-width:0;flex:1}
+    .social-top .social-mark{flex:none}.social-mark img{display:block;width:28px;height:28px;object-fit:contain}.social-top .social-copy{min-width:0;flex:1}
     .social-top .social-copy b{display:block}.social-top .social-copy p{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .social-top .action{white-space:nowrap;padding:8px 10px}
     .social-preview{position:relative;height:260px;background:linear-gradient(145deg,#edf1f6,#fff6ee);overflow:hidden}
@@ -98,7 +98,13 @@
     card.className = 'social-card';
     const top = document.createElement('div');
     top.className = 'social-top';
-    addText(top, 'div', 'social-mark', platform.mark);
+    const mark = addText(top, 'div', 'social-mark', platform.chat ? '' : platform.mark);
+    if (platform.chat) {
+      const icon = document.createElement('img');
+      icon.src = '/assets/images/whatsapp-icon.svg';
+      icon.alt = 'WhatsApp';
+      mark.append(icon);
+    }
     const copy = document.createElement('div');
     copy.className = 'social-copy';
     addText(copy, 'b', '', platform.name);
