@@ -83,7 +83,7 @@
     .social-link-preview strong{display:block;color:#ffd0b0;font-size:14px}.social-link-preview span{display:block;color:#e2e9f2;font-size:10px;margin-top:6px}
     .preview-note{padding:8px 12px;background:#f7f8fa;color:#718096;font-size:9px;line-height:1.5}
     .wa-preview{height:260px;display:flex;align-items:center;justify-content:center;text-align:center;padding:22px;background:radial-gradient(ellipse at 18% 18%,#ffffff32,transparent 34%),linear-gradient(140deg,#0a1931,#263f63)}
-    .wa-preview strong{display:block;color:#ffd0b0;font-size:14px}.wa-preview span{display:block;margin-top:5px;color:#e2e9f2;font-size:10px}
+    .wa-preview .preview-brand{width:48px;height:48px;margin:0 auto 12px;border:1px solid #ffd0b0a0;border-radius:16px;background:#ffffff12;display:grid;place-items:center}.wa-preview .preview-brand img{display:block;width:28px;height:28px;object-fit:contain}.wa-preview strong{display:block;color:#ffd0b0;font-size:14px}.wa-preview span{display:block;margin-top:5px;color:#e2e9f2;font-size:10px}
     @media(max-width:900px){.social-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
     @media(max-width:700px){.social-grid{grid-template-columns:1fr}}
   `;
@@ -121,6 +121,14 @@
       const preview = document.createElement('div');
       preview.className = 'wa-preview';
       const message = document.createElement('div');
+
+      const brand = document.createElement('div');
+      brand.className = 'preview-brand';
+      const previewIcon = document.createElement('img');
+      previewIcon.src = '/assets/images/whatsapp-preview-icon.svg';
+      previewIcon.alt = '';
+      brand.append(previewIcon);
+      message.append(brand);
       addText(message, 'strong', '', 'Chat with DIPVTC');
       addText(message, 'span', '', 'Open WhatsApp to view the school profile or start a conversation.');
       preview.append(message);
