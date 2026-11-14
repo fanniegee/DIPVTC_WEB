@@ -944,6 +944,14 @@ async function getPublishedFeeSchedule(student){
   return{department:learnerDepartment,exchangeRate:usableRate,rateSource:market?.source||"Exchange rate unavailable",rateDate:market?.date||null,terms:[...groups.values()]};
 }
 app.get("/api/exchange-rate",async(_req,res,next)=>{try{const rate=await refreshUsdZarMarketRate();res.setHeader("Cache-Control","no-store");res.json(rate)}catch(error){next(error)}});
+const PUBLIC_FOOTER_KEYS = ["dipvtc_admission_sec_title", "dipvtc_admission_sec_text", "dipvtc_news_title", "dipvtc_news_text", "dipvtc_news", "dipvtc_site_footer", "dipvtc_site_email", "dipvtc_site_phones", "dipvtc_site_address"];
+app.get("/api/public/site-content", async (_req, res, next) => {
+  try {
+    const state = await stateSnapshot(PUBLIC_FOOTER_KEYS);
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ state });
+  } catch (error) { next(error); }
+});
 app.get("/api/public/admission-options",async(_req,res,next)=>{try{const r=await pool.query("SELECT state_key,value FROM site_state WHERE state_key=ANY($1::text[])",[["dipvtc_school_price_rules","dipvtc_fees"]]);const saved=Object.fromEntries(r.rows.map(row=>[row.state_key,row.value]));const feeRules={...DEFAULT_SCHOOL_PRICE_RULES,...(decodeStoredState(saved.dipvtc_school_price_rules,{})||{})};const fees=decodeStoredState(saved.dipvtc_fees,[]);res.setHeader("Cache-Control","no-store");res.json({schools:ADMISSION_SCHOOLS,feeRules,fees:Array.isArray(fees)?fees:[]});}catch(error){next(error)}});
 app.post("/api/student-registrations",async(req,res,next)=>{
   const b=req.body||{};
