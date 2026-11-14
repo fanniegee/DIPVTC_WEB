@@ -120,8 +120,31 @@
       preview.append(message);
       card.append(preview);
     } else if (platform.key === 'dipvtc_site_facebook') {
-      addText(card, 'div', 'preview-note', 'Open WhatsApp to message the school directly.');
-      addPlatformLinkPreview(card, platform);
+      const preview = document.createElement('div');
+      preview.className = 'social-preview social-link-preview';
+      const loader = createPreviewLoader(platform.mark, 'Load Facebook Page preview', 'Facebook Pages can be previewed with Meta’s Page Plugin.');
+      loader.button.addEventListener('click', () => {
+        loader.button.disabled = true;
+        loader.button.textContent = 'Loading Facebook…';
+        const frame = document.createElement('iframe');
+        const plugin = new URL('https://www.facebook.com/plugins/page.php');
+        plugin.searchParams.set('href', url);
+        plugin.searchParams.set('tabs', 'timeline');
+        plugin.searchParams.set('width', '500');
+        plugin.searchParams.set('height', '260');
+        plugin.searchParams.set('adapt_container_width', 'true');
+        plugin.searchParams.set('hide_cover', 'false');
+        plugin.searchParams.set('show_facepile', 'true');
+        frame.src = plugin.href;
+        frame.title = 'DIPVTC Facebook Page';
+        frame.referrerPolicy = 'strict-origin-when-cross-origin';
+        frame.allow = 'autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share';
+        preview.classList.remove('social-link-preview');
+        preview.replaceChildren(frame);
+      });
+      preview.append(loader.element);
+      card.append(preview);
+      addText(card, 'div', 'preview-note', 'If Facebook cannot display the embedded preview, use Open profile to visit the school Page.');
     } else if (platform.key === 'dipvtc_site_instagram') {
       const preview = document.createElement('div');
       preview.className = 'social-preview social-link-preview';
