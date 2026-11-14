@@ -63,3 +63,14 @@ Teacher question pasting accepts numbered headings such as `Q1:` or `1.`, choice
 ### ZIMSEC teacher class allocations
 
 Apply `database/009_zimsec_teacher_class_assignments.sql` after migrations 001–008 to the DIPVTC database. It seeds the canonical ZIMSEC classes, links existing ZIMSEC learner records and class content to the canonical class names, and creates the Owner/Main Admin managed teacher assignment table. Primary lead-class assignments automatically include the six core subjects. This migration and the new assignment controls are ZIMSEC-only.
+
+
+## WhatsApp Cloud API information assistant
+
+The `/webhooks/whatsapp` endpoint handles Meta webhook verification and signed inbound WhatsApp webhooks. Text messages use the same published-school-information assistant as the website. Replies are sent only after a user starts the conversation; the application does not send unsolicited messages. Only text and interactive button/list replies are supported in this first version. Private learner/account/payment/health requests are not sent to OpenAI. Message text and sender phone numbers are not stored in the school database; the database stores Meta message IDs only for webhook deduplication and retry handling.
+
+Before activating the webhook, apply `database/014_whatsapp_assistant_webhook.sql` to the DIPVTC database. For local `psql`, run `\i 'C:/Users/Fannie Gee/Desktop/DIPVTC_WEB/database/014_whatsapp_assistant_webhook.sql'`. Do not run it against the separate GFT-FMT database.
+
+In Meta for Developers, create an app with the WhatsApp use case and test the flow using Meta's test number first. Set the webhook callback to `https://dipvtc-web.onrender.com/webhooks/whatsapp`, enter the same random `WHATSAPP_WEBHOOK_VERIFY_TOKEN` in Meta and Render, verify the callback, and subscribe the app to the `messages` webhook field. Configure these secrets in the `dipvtc-web` Render service Environment settings; do not put them in Git or send them in chat: `WHATSAPP_ACCESS_TOKEN` (system-user token with WhatsApp messaging permission), `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, and `WHATSAPP_APP_SECRET`. Set `WHATSAPP_GRAPH_API_VERSION` to a currently supported Meta Graph API version. The code defaults to `v27.0`. Set `PUBLIC_BASE_URL=https://dipvtc.com` if the public website should use the custom domain in WhatsApp replies.
+
+Do not move the school's currently used WhatsApp number into Cloud API using the direct migration steps until its account type and history are checked. Meta documents that a direct move can require deleting the existing WhatsApp account and lose its message history; keeping the Business app and Cloud API active together requires supported coexistence onboarding through a partner. Start with the test number or a separate number, then decide how to onboard the support number. Cloud API messages may have Meta charges.

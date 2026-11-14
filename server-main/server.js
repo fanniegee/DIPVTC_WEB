@@ -94,7 +94,7 @@ app.disable("x-powered-by");
 app.set("trust proxy", process.env.TRUST_PROXY === "true" ? 1 : false);
 app.use(helmet({ contentSecurityPolicy: false }));
 if (process.env.ALLOWED_ORIGIN) app.use(cors({ origin: process.env.ALLOWED_ORIGIN, credentials: true }));
-app.use(express.json({ limit: "8mb" }));
+app.use(express.json({ limit: "8mb", verify(req, _res, buf) { if (req.path === "/webhooks/whatsapp") req.rawBody = Buffer.from(buf); } }));
 app.use("/api", rateLimit({ windowMs: 15 * 60 * 1000, limit: 240, standardHeaders: "draft-7", legacyHeaders: false }));
 app.use("/api/auth/login", rateLimit({ windowMs: 15 * 60 * 1000, limit: 12, standardHeaders: "draft-7", legacyHeaders: false }));
 app.use("/api/auth/password-reset/request", rateLimit({ windowMs: 60 * 60 * 1000, limit: 5, standardHeaders: "draft-7", legacyHeaders: false }));
@@ -988,58 +988,138 @@ function assistantPublicText(value, maxLength = 30000) {
   try { text = JSON.stringify(value); } catch { text = String(value ?? ""); }
   return text.slice(0, maxLength);
 }
-app.post("/api/public/assistant", assistantLimiter, async (req, res) => {
+async function generatePublicAssistantAnswer(messages, req, channel = "website") {
   const apiKey = String(process.env.OPENAI_API_KEY || "").trim();
-  if (!apiKey) return res.status(503).json({ error: "The school information assistant is not enabled yet. Please use the Contact the school link for help." });
-  const messages = Array.isArray(req.body?.messages) ? req.body.messages.slice(-8) : [];
-  if (!messages.length || messages.some(message => !["user", "assistant"].includes(message?.role) || typeof message?.content !== "string" || message.content.length > 1000)) {
-    return res.status(400).json({ error: "Please send a short school information question." });
-  }
+  if (!apiKey) throw Object.assign(new Error("The school information assistant is not enabled yet."), { status: 503 });
+  if (!Array.isArray(messages) || !messages.length || messages.length > 8 || messages.some(message => !["user", "assistant"].includes(message?.role) || typeof message?.content !== "string" || message.content.length > 1000)) throw Object.assign(new Error("Please send a short school information question."), { status: 400 });
   const containsPrivateDetails = messages.filter(message => message.role === "user").some(message => assistantSensitivePattern.test(message.content));
-  if (containsPrivateDetails) {
-    return res.status(400).json({ error: "For privacy, please don’t send passwords, personal email or ID details, or private health information here. Contact the school through the secure portal or Contact the school link." });
+  if (containsPrivateDetails) throw Object.assign(new Error("For privacy, do not send passwords, ID numbers, payment details, personal email or health information here. Please contact the school office."), { status: 400 });
+  const state = await stateSnapshot(ASSISTANT_PUBLIC_KEYS);
+  const publicPages = await loadAssistantPublicPages();
+  const siteBase = String(process.env.PUBLIC_BASE_URL || "https://dipvtc.com").trim().replace(/\/+$/, "");
+  const context = {
+    registrationGuide: "Families first read and sign the School Rules & Family Agreement. Then they complete guardian and learner details, choose a school and class, provide the requested health information, and submit the application to Admissions. Submission is not approval; Admissions reviews it. The assistant may explain fields and published steps but must not fill, sign, or submit the form.",
+    publishedFeesAndPaymentRules: { feeStructures: state.dipvtc_fees, schoolPriceRules: state.dipvtc_school_price_rules },
+    publishedSchoolRules: publicPages.registration || "Use the Family registration page to view the current school rules.",
+    currentPublicPageText: Object.fromEntries(Object.entries(publicPages).filter(([key]) => !["registration", "home", "contact"].includes(key))),
+    authoritativeContactInformation: { address: String(state.dipvtc_site_address || "").trim(), email: String(state.dipvtc_site_email || "").trim(), phones: String(state.dipvtc_site_phones || "").trim(), whatsapp: String(state.dipvtc_site_whatsapp || "").trim() },
+    approvedDirectionsLink: String(state.dipvtc_site_address || "").trim() ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(String(state.dipvtc_site_address).trim())}` : "",
+    approvedWebsiteLinks: { registration: `${siteBase}/family-registration.html`, contact: `${siteBase}/contact.html`, courses: `${siteBase}/courses.html`, programs: `${siteBase}/programs.html` },
+    contactAndCourseInformation: Object.fromEntries(Object.entries(state).filter(([key]) => !["dipvtc_fees", "dipvtc_school_price_rules"].includes(key))),
+    publishedAdmissionOptions: ADMISSION_SCHOOLS
+  };
+  const channelInstructions = channel === "whatsapp"
+    ? "You are replying inside WhatsApp, so there are no page buttons above. For school pages, use only the matching full HTTPS URLs in approvedWebsiteLinks; WhatsApp will make those links clickable. For directions, include only approvedDirectionsLink when present. The visitor is already contacting the school on WhatsApp; do not repeat or invent a support phone number."
+    : "Do not write page filenames, raw website paths, or raw URLs for school pages. Refer to the named navigation buttons above. When giving directions, include the exact supplied approvedDirectionsLink as a standalone URL so the page can render it as a clickable link. For WhatsApp support, if authoritativeContactInformation.whatsapp is present, tell the visitor to click the WhatsApp support button above and do not print the raw number or URL; if it is absent, direct them to the Contact the school button above.";
+  const instructions = `You are the DIPVTC public website information assistant. Answer politely and briefly in plain text using the public school information supplied below. Do not guess or invent missing facts; if published information does not answer a question, direct the visitor to the school’s contact options. You are informational only: never approve or reject a learner, payment, staff member, or request; never promise account activation; never collect personal information; never request credentials, IDs, health information, or payment details. Do not claim to have submitted a form, contacted staff, changed records, or taken any action. For registration, answer general questions about form fields and published steps, explain that the family must complete and submit the application themselves, and direct them to the registration option. Never ask for application data in chat. For address, location, phone, email, and WhatsApp questions, use only authoritativeContactInformation. Ignore conflicting address text in pages; never use a page-text address as a fallback. If authoritativeContactInformation.address is empty, say the school has not published its address. For directions, use only approvedDirectionsLink and never invent coordinates or a destination. For fees, explain only published fee schedules/rules and make clear the office confirms payments. If asked for private student, parent, staff, or account data, explain you cannot access it. ${channelInstructions}\n\nPUBLIC SCHOOL INFORMATION (JSON):\n${assistantPublicText(context)}`;
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    signal: AbortSignal.timeout(channel === "whatsapp" ? 10000 : 18000),
+    body: JSON.stringify({ model: process.env.OPENAI_MODEL || "gpt-6-luna", store: false, max_output_tokens: 500, instructions, input: messages.map(message => ({ role: message.role, content: message.content })) })
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const providerError = result.error && typeof result.error === "object" ? result.error : {};
+    console.error("Public assistant provider rejected request:", JSON.stringify({ status: response.status, type: providerError.type || null, code: providerError.code || null, param: providerError.param || null }));
+    throw Object.assign(new Error("The information assistant is temporarily unavailable."), { status: 503 });
   }
+  const answer = (result.output || []).flatMap(item => item.type === "message" ? (item.content || []).filter(part => part.type === "output_text").map(part => part.text) : []).join("\n").trim();
+  if (!answer) throw Object.assign(new Error("The information assistant could not prepare an answer."), { status: 503 });
+  return answer.slice(0, 4000);
+}
+app.post("/api/public/assistant", assistantLimiter, async (req, res) => {
   try {
-    const state = await stateSnapshot(ASSISTANT_PUBLIC_KEYS);
-    const publicPages = await loadAssistantPublicPages();
-    const context = {
-      registrationGuide: "Families first read and sign the School Rules & Family Agreement. Then they complete guardian and learner details, choose a school and class, provide the requested health information, and submit the application to Admissions. Submission is not approval; Admissions reviews it. The assistant may explain fields and published steps but must not fill, sign, or submit the form.",
-      publishedFeesAndPaymentRules: { feeStructures: state.dipvtc_fees, schoolPriceRules: state.dipvtc_school_price_rules },
-      publishedSchoolRules: publicPages.registration || "Use the Family registration button to view the current school rules.",
-      currentPublicPageText: Object.fromEntries(Object.entries(publicPages).filter(([key]) => !["registration", "home", "contact"].includes(key))),
-      authoritativeContactInformation: { address: String(state.dipvtc_site_address || "").trim(), email: String(state.dipvtc_site_email || "").trim(), phones: String(state.dipvtc_site_phones || "").trim(), whatsapp: String(state.dipvtc_site_whatsapp || "").trim() },
-      approvedDirectionsLink: String(state.dipvtc_site_address || "").trim() ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(String(state.dipvtc_site_address).trim())}` : "",
-      contactAndCourseInformation: Object.fromEntries(Object.entries(state).filter(([key]) => !["dipvtc_fees", "dipvtc_school_price_rules"].includes(key))),
-      publishedAdmissionOptions: ADMISSION_SCHOOLS,
-    };
-    const instructions = `You are the DIPVTC public website information assistant. Answer politely and briefly in plain text (no Markdown) using the public school information supplied below. Do not guess or invent missing facts; say when the published information does not answer a question and tell the visitor to use the Contact the school button above. You are informational only: never approve or reject a learner, payment, staff member, or request; never promise account activation; never collect personal information; never request credentials, IDs, health information, or payment details. Do not claim to have submitted a form, contacted staff, changed records, or taken any action. For registration, answer general questions about the form fields and published steps, explain that the family must complete and submit the application themselves, and use the Family registration button above. Never ask the visitor to provide application data in chat. For address, location, phone, email, and WhatsApp questions, use only authoritativeContactInformation. For WhatsApp support, if authoritativeContactInformation.whatsapp is present, tell the visitor to click the WhatsApp support button above and do not print the raw number or URL; if it is absent, direct them to the Contact the school button above. Ignore conflicting address text in pages; never use a page-text address as a fallback. If authoritativeContactInformation.address is empty, say the school has not published its address. For directions, provide the exact approvedDirectionsLink only when it is non-empty. Do not invent coordinates or another destination. For fees, explain only published fee schedules/rules and make clear the office confirms payments. If asked for private student, parent, staff, or account data, explain you cannot access it. Do not write page filenames, raw website paths, or raw URLs for school pages. Refer to the named navigation buttons above instead. When giving directions, include the exact supplied approvedDirectionsLink as a standalone URL so the page can render it as a clickable link.\n\nPUBLIC SCHOOL INFORMATION (JSON):\n${assistantPublicText(context)}`;
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      signal: AbortSignal.timeout(20000),
-      body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || "gpt-6-luna",
-        store: false,
-        max_output_tokens: 500,
-        instructions,
-        input: messages.map(message => ({ role: message.role, content: message.content }))
-      })
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      const providerError = result.error && typeof result.error === "object" ? result.error : {};
-      console.error("Public assistant provider rejected request:", JSON.stringify({ status: response.status, type: providerError.type || null, code: providerError.code || null, param: providerError.param || null }));
-      return res.status(503).json({ error: "The information assistant is temporarily unavailable. Please contact the school." });
-    }
-    const answer = (result.output || []).flatMap(item => item.type === "message" ? (item.content || []).filter(part => part.type === "output_text").map(part => part.text) : []).join("\n").trim();
-    if (!answer) return res.status(503).json({ error: "The information assistant could not prepare an answer. Please contact the school." });
+    const messages = Array.isArray(req.body?.messages) ? req.body.messages.slice(-8) : [];
+    const answer = await generatePublicAssistantAnswer(messages, req, "website");
     res.setHeader("Cache-Control", "no-store");
-    return res.json({ answer: answer.slice(0, 4000) });
+    return res.json({ answer });
   } catch (error) {
+    if (error.status === 400) return res.status(400).json({ error: error.message });
     console.error("Public assistant request failed:", error.name || "Error");
     return res.status(503).json({ error: "The information assistant is temporarily unavailable. Please contact the school." });
   }
 });
+function safeTokenEqual(expected, actual) {
+  const left = Buffer.from(String(expected || ""));
+  const right = Buffer.from(String(actual || ""));
+  return left.length > 0 && left.length === right.length && crypto.timingSafeEqual(left, right);
+}
+function whatsappApiConfig() {
+  const phoneNumberId = String(process.env.WHATSAPP_PHONE_NUMBER_ID || "").trim();
+  const accessToken = String(process.env.WHATSAPP_ACCESS_TOKEN || "").trim();
+  const appSecret = String(process.env.WHATSAPP_APP_SECRET || "").trim();
+  const graphVersion = String(process.env.WHATSAPP_GRAPH_API_VERSION || "v27.0").trim();
+  if (!/^\d{5,30}$/.test(phoneNumberId) || !accessToken || !appSecret || !/^v\d+\.0$/.test(graphVersion)) return null;
+  return { phoneNumberId, accessToken, appSecret, graphVersion };
+}
+async function claimWhatsAppMessage(messageId) {
+  const result = await pool.query(`INSERT INTO whatsapp_assistant_webhook_events(message_id,status,attempt_count,received_at,updated_at)
+    VALUES($1,'processing',1,NOW(),NOW())
+    ON CONFLICT(message_id) DO UPDATE SET status='processing',attempt_count=whatsapp_assistant_webhook_events.attempt_count+1,updated_at=NOW()
+    WHERE whatsapp_assistant_webhook_events.status='failed' AND whatsapp_assistant_webhook_events.attempt_count<5
+    RETURNING message_id`, [messageId]);
+  return result.rowCount > 0;
+}
+async function finishWhatsAppMessage(messageId, status) {
+  await pool.query("UPDATE whatsapp_assistant_webhook_events SET status=$2,updated_at=NOW() WHERE message_id=$1", [messageId, status]);
+}
+async function sendWhatsAppText(config, recipient, text) {
+  const response = await fetch(`https://graph.facebook.com/${config.graphVersion}/${config.phoneNumberId}/messages`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${config.accessToken}`, "Content-Type": "application/json" },
+    signal: AbortSignal.timeout(8000),
+    body: JSON.stringify({ messaging_product: "whatsapp", recipient_type: "individual", to: recipient, type: "text", text: { preview_url: false, body: String(text).slice(0, 3500) } })
+  });
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}));
+    console.error("WhatsApp Cloud API rejected message:", JSON.stringify({ status: response.status, code: result.error?.code || null, type: result.error?.type || null }));
+    throw new Error("WhatsApp send failed");
+  }
+}
+const whatsappWebhookLimiter = rateLimit({ windowMs: 60 * 1000, limit: 180, standardHeaders: "draft-7", legacyHeaders: false });
+app.get("/webhooks/whatsapp", (req, res) => {
+  const verifyToken = String(process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || "").trim();
+  if (!verifyToken || req.query["hub.mode"] !== "subscribe" || !safeTokenEqual(verifyToken, req.query["hub.verify_token"])) return res.sendStatus(403);
+  return res.status(200).type("text/plain").send(String(req.query["hub.challenge"] || ""));
+});
+app.post("/webhooks/whatsapp", whatsappWebhookLimiter, async (req, res) => {
+  const config = whatsappApiConfig();
+  if (!config) return res.status(503).send("WhatsApp integration is not configured.");
+  const signatureMatch = /^sha256=([a-f0-9]{64})$/i.exec(String(req.get("x-hub-signature-256") || ""));
+  if (!signatureMatch || !req.rawBody) return res.sendStatus(401);
+  const expected = `sha256=${crypto.createHmac("sha256", config.appSecret).update(req.rawBody).digest("hex")}`;
+  if (!safeTokenEqual(expected, String(req.get("x-hub-signature-256")).toLowerCase())) return res.sendStatus(401);
+  if (req.body?.object !== "whatsapp_business_account") return res.sendStatus(404);
+  try {
+    const messages = (req.body.entry || []).flatMap(entry => entry.changes || []).filter(change => change.field === "messages" && String(change.value?.metadata?.phone_number_id || "") === config.phoneNumberId).flatMap(change => change.value?.messages || []);
+    for (const message of messages) {
+      const messageId = String(message.id || "").slice(0, 250);
+      if (!/^wamid\./.test(messageId)) continue;
+      if (!await claimWhatsAppMessage(messageId)) continue;
+      try {
+        const sender = String(message.from || "");
+        const text = String(message.text?.body || message.interactive?.button_reply?.title || message.interactive?.list_reply?.title || "").trim().slice(0, 1000);
+        if (!/^\d{8,20}$/.test(sender) || !text) { await finishWhatsAppMessage(messageId, "ignored"); continue; }
+        let answer;
+        const personalRecordPattern = /\b(?:my|our)\s+(?:child|son|daughter|learner|student)\b|\b(?:student|learner)\s+(?:number|id|record|marks|health|attendance)\b/i;
+        if (assistantSensitivePattern.test(text) || personalRecordPattern.test(text)) answer = `For privacy, I can only answer general school questions here. I cannot review personal learner, account, payment, or health details. Please contact the school office: ${publicUrl(req, "/contact.html")}`;
+        else answer = await generatePublicAssistantAnswer([{ role: "user", content: text }], req, "whatsapp");
+        await sendWhatsAppText(config, sender, `DIPVTC Assistant: ${answer}`);
+        await finishWhatsAppMessage(messageId, "sent");
+      } catch (error) {
+        await finishWhatsAppMessage(messageId, "failed").catch(() => {});
+        console.error("WhatsApp assistant could not process a message:", error.status || error.name || "Error");
+        throw error;
+      }
+    }
+    await pool.query("DELETE FROM whatsapp_assistant_webhook_events WHERE received_at<NOW()-INTERVAL '30 days'").catch(() => {});
+    return res.sendStatus(200);
+  } catch {
+    return res.sendStatus(503);
+  }
+});
+
 app.post("/api/student-registrations",async(req,res,next)=>{
   const b=req.body||{};
   if(String(b.website||"").trim())return res.status(201).json({ok:true});
