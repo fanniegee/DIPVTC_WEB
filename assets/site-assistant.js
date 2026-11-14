@@ -7,15 +7,21 @@
   const messagesNode = document.getElementById('dipvtc-assistant-messages');
   const send = document.getElementById('dipvtc-assistant-send');
   const whatsappLink = document.getElementById('dipvtc-assistant-whatsapp');
+  const directionsLink = document.getElementById('dipvtc-assistant-directions');
   const history = [];
   async function loadWhatsAppSupport() {
-    if (!whatsappLink) return;
+    if (!whatsappLink && !directionsLink) return;
     try {
       const response = await fetch('/api/public/site-content', { cache: 'no-store' });
       if (!response.ok) return;
       const state = (await response.json()).state || {};
       const raw = String(state.dipvtc_site_whatsapp || '').trim();
-      if (!raw) return;
+      const address = String(state.dipvtc_site_address || '').trim();
+      if (directionsLink && address) {
+        directionsLink.href = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`;
+        directionsLink.hidden = false;
+      }
+      if (!whatsappLink || !raw) return;
       let url;
       if (/^https?:\/\//i.test(raw)) url = new URL(raw);
       else if (/^(?:wa\.me|(?:www\.)?(?:whatsapp\.com|api\.whatsapp\.com))(?:\/|$)/i.test(raw)) url = new URL(`https://${raw}`);

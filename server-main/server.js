@@ -1006,12 +1006,14 @@ app.post("/api/public/assistant", assistantLimiter, async (req, res) => {
       registrationGuide: "Families first read and sign the School Rules & Family Agreement. Then they complete guardian and learner details, choose a school and class, provide the requested health information, and submit the application to Admissions. Submission is not approval; Admissions reviews it. The assistant may explain fields and published steps but must not fill, sign, or submit the form.",
       publishedFeesAndPaymentRules: { feeStructures: state.dipvtc_fees, schoolPriceRules: state.dipvtc_school_price_rules },
       publishedSchoolRules: publicPages.registration || "See /family-registration.html for the current school rules.",
-      currentPublicPageText: Object.fromEntries(Object.entries(publicPages).filter(([key]) => key !== "registration")),
+      currentPublicPageText: Object.fromEntries(Object.entries(publicPages).filter(([key]) => !["registration", "home", "contact"].includes(key))),
+      authoritativeContactInformation: { address: String(state.dipvtc_site_address || "").trim(), email: String(state.dipvtc_site_email || "").trim(), phones: String(state.dipvtc_site_phones || "").trim(), whatsapp: String(state.dipvtc_site_whatsapp || "").trim() },
+      approvedDirectionsLink: String(state.dipvtc_site_address || "").trim() ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(String(state.dipvtc_site_address).trim())}` : "",
       contactAndCourseInformation: Object.fromEntries(Object.entries(state).filter(([key]) => !["dipvtc_fees", "dipvtc_school_price_rules"].includes(key))),
       publishedAdmissionOptions: ADMISSION_SCHOOLS,
       approvedLinks: ["/family-registration.html", "/contact.html", "/courses.html", "/programs.html"]
     };
-    const instructions = `You are the DIPVTC public website information assistant. Answer politely and briefly in plain text (no Markdown) using the public school information supplied below. Do not guess or invent missing facts; say when the published information does not answer a question and direct the visitor to Contact the school at /contact.html. You are informational only: never approve or reject a learner, payment, staff member, or request; never promise account activation; never collect personal information; never request credentials, IDs, health information, or payment details. Do not claim to have submitted a form, contacted staff, changed records, or taken any action. For registration, answer general questions about the form fields and published steps, explain that the family must complete and submit the application themselves, and link to /family-registration.html. Never ask the visitor to provide application data in chat. For contact questions, use only the published contact values. For fees, explain only published fee schedules/rules and make clear the office confirms payments. If asked for private student, parent, staff, or account data, explain you cannot access it. Link only to these approved pages: /family-registration.html, /contact.html, /courses.html, /programs.html.\n\nPUBLIC SCHOOL INFORMATION (JSON):\n${assistantPublicText(context)}`;
+    const instructions = `You are the DIPVTC public website information assistant. Answer politely and briefly in plain text (no Markdown) using the public school information supplied below. Do not guess or invent missing facts; say when the published information does not answer a question and direct the visitor to Contact the school at /contact.html. You are informational only: never approve or reject a learner, payment, staff member, or request; never promise account activation; never collect personal information; never request credentials, IDs, health information, or payment details. Do not claim to have submitted a form, contacted staff, changed records, or taken any action. For registration, answer general questions about the form fields and published steps, explain that the family must complete and submit the application themselves, and link to /family-registration.html. Never ask the visitor to provide application data in chat. For address, location, phone, email, and WhatsApp questions, use only authoritativeContactInformation. Ignore conflicting address text in pages; never use a page-text address as a fallback. If authoritativeContactInformation.address is empty, say the school has not published its address. For directions, provide the exact approvedDirectionsLink only when it is non-empty. Do not invent coordinates or another destination. For fees, explain only published fee schedules/rules and make clear the office confirms payments. If asked for private student, parent, staff, or account data, explain you cannot access it. Link only to these approved pages: /family-registration.html, /contact.html, /courses.html, /programs.html, and the supplied approvedDirectionsLink.\n\nPUBLIC SCHOOL INFORMATION (JSON):\n${assistantPublicText(context)}`;
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
@@ -1113,6 +1115,50 @@ app.get("/registration-requests.html", requireRole("owner","admin","admissions")
 app.get("/learning.html", requireRole("owner","admin","principal","teacher","admissions"), async(req,res,next)=>{try{await renderHtml("learning.html",req.user,res);}catch(e){next(e);}});
 app.get("/parent-portal.html", requireRole("parent","owner","admin"), async(req,res,next)=>{try{if(["owner","admin"].includes(req.user.role)&&(req.query.as!=="parent"||!/^[0-9a-f-]{36}$/i.test(String(req.query.previewStudentId||""))))return res.status(403).send("Open this portal from a learner’s read-only preview link.");await renderHtml("parent-portal.html",req.user,res);}catch(e){next(e);}});
 app.get("/student-portal.html", requireRole("student","owner","admin"), async(req,res,next)=>{try{if(["owner","admin"].includes(req.user.role)&&(req.query.as!=="student"||!/^[0-9a-f-]{36}$/i.test(String(req.query.previewStudentId||""))))return res.status(403).send("Open this portal from a learner’s read-only preview link.");await renderHtml("student-portal.html",req.user,res);}catch(e){next(e);}});
+const PROJECT_TASKS_KEY = "dipvtc_private_project_tasks";
+async function readProjectTasks() {
+  const result = await pool.query("SELECT value FROM site_state WHERE state_key=$1", [PROJECT_TASKS_KEY]);
+  const value = result.rows[0]?.value;
+  return Array.isArray(value) ? value.slice(0, 100) : [];
+}
+function cleanProjectTask(body, existing = {}) {
+  const title = String(body?.title ?? existing.title ?? "").trim().slice(0, 160);
+  const description = String(body?.description ?? existing.description ?? "").trim().slice(0, 1200);
+  const area = String(body?.area ?? existing.area ?? "General").trim().slice(0, 80) || "General";
+  const status = String(body?.status ?? existing.status ?? "open");
+  const priority = String(body?.priority ?? existing.priority ?? "medium");
+  if (title.length < 3 || !["open", "in_progress", "blocked", "done"].includes(status) || !["low", "medium", "high", "urgent"].includes(priority)) return null;
+  return { id: existing.id || crypto.randomUUID(), title, description, area, status, priority, updatedAt: new Date().toISOString() };
+}
+async function writeProjectTasks(tasks, user, action, target) {
+  await pool.query("INSERT INTO site_state(state_key,value,updated_by,updated_at) VALUES($1,$2::jsonb,$3,NOW()) ON CONFLICT(state_key) DO UPDATE SET value=EXCLUDED.value,updated_by=EXCLUDED.updated_by,updated_at=NOW()", [PROJECT_TASKS_KEY, JSON.stringify(tasks), user.id]);
+  await pool.query("INSERT INTO app_audit_log(user_id,action,target_key) VALUES($1,$2,$3)", [user.id, action, String(target || PROJECT_TASKS_KEY).slice(0, 120)]);
+}
+app.get("/api/admin/project-tasks", requireRole("owner", "admin"), async (_req, res, next) => { try { res.setHeader("Cache-Control", "no-store"); res.json({ tasks: await readProjectTasks() }); } catch (error) { next(error); } });
+app.post("/api/admin/project-tasks", requireRole("owner", "admin"), async (req, res, next) => {
+  try { const tasks = await readProjectTasks(); if (tasks.length >= 100) return res.status(400).json({ error: "The project list is full. Close or remove completed items first." }); const task = cleanProjectTask(req.body); if (!task) return res.status(400).json({ error: "Enter a task title and valid status and priority." }); tasks.unshift(task); await writeProjectTasks(tasks, req.user, "project-task-created", task.id); res.status(201).json({ task }); } catch (error) { next(error); }
+});
+app.patch("/api/admin/project-tasks/:id", requireRole("owner", "admin"), async (req, res, next) => {
+  try { const tasks = await readProjectTasks(), index = tasks.findIndex(task => task.id === req.params.id); if (index < 0) return res.status(404).json({ error: "Project task not found." }); const task = cleanProjectTask(req.body, tasks[index]); if (!task) return res.status(400).json({ error: "Choose a valid status and priority." }); tasks[index] = task; await writeProjectTasks(tasks, req.user, "project-task-updated", task.id); res.json({ task }); } catch (error) { next(error); }
+});
+app.delete("/api/admin/project-tasks/:id", requireRole("owner", "admin"), async (req, res, next) => {
+  try { const tasks = await readProjectTasks(), updated = tasks.filter(task => task.id !== req.params.id); if (updated.length === tasks.length) return res.status(404).json({ error: "Project task not found." }); await writeProjectTasks(updated, req.user, "project-task-deleted", req.params.id); res.json({ ok: true }); } catch (error) { next(error); }
+});
+app.post("/api/admin/project-assistant/review", requireRole("owner", "admin"), async (_req, res, next) => {
+  try {
+    const tasks = await readProjectTasks();
+    const risks = [];
+    for (const task of tasks.filter(item => item.status !== "done")) {
+      if (task.status === "blocked") risks.push({ level: "high", title: `Blocked: ${task.title}`, detail: "This item is marked blocked and may affect delivery." });
+      if (["high", "urgent"].includes(task.priority)) risks.push({ level: task.priority === "urgent" ? "high" : "medium", title: `Priority review: ${task.title}`, detail: "Confirm the owner, dependency, and next action for this high-priority item." });
+      if (/media|audio|video|upload|storage/i.test(`${task.title} ${task.description}`) && !mediaStorageReady()) risks.push({ level: "medium", title: `Storage dependency: ${task.title}`, detail: "Private media storage is not configured on this service yet." });
+    }
+    const unfinished = tasks.filter(task => task.status !== "done");
+    if (!unfinished.length) risks.push({ level: "info", title: "No unfinished items recorded", detail: "Add planned work to the list so it can be tracked." });
+    res.setHeader("Cache-Control", "no-store"); res.json({ unfinished, risks, summary: `${unfinished.length} unfinished item${unfinished.length === 1 ? "" : "s"}; ${risks.filter(r => r.level === "high").length} high-priority risk flag${risks.filter(r => r.level === "high").length === 1 ? "" : "s"}.` });
+  } catch (error) { next(error); }
+});
+app.get("/project-assistant.html", requireRole("owner", "admin"), async (req, res, next) => { try { await renderHtml("project-assistant.html", req.user, res); } catch (error) { next(error); } });
 app.get("/owner.html", requireRole("owner"), async (req, res, next) => { try { await renderHtml("owner.html", req.user, res); } catch (error) { next(error); } });
 app.get("/admin.html", requireRole("owner", "admin"), async (req, res, next) => { try { await renderHtml("admin.html", req.user, res); } catch (error) { next(error); } });
 app.get("/payment-review.html", requireRole("owner","admin","finance"), async(req,res,next)=>{try{await renderHtml("payment-review.html",req.user,res);}catch(e){next(e);}});
