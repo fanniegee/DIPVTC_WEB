@@ -1,0 +1,12 @@
+.dipvtc-assistant-launcher{position:fixed;right:20px;bottom:20px;z-index:1200;border:0;border-radius:999px;background:#e67e22;color:#fff;padding:14px 18px;font:800 14px Montserrat,Arial,sans-serif;box-shadow:0 8px 24px #0a193144;cursor:pointer}
+.dipvtc-assistant-launcher:focus-visible,.dipvtc-assistant button:focus-visible,.dipvtc-assistant input:focus-visible{outline:3px solid #1f6feb;outline-offset:2px}
+.dipvtc-assistant{position:fixed;right:20px;bottom:82px;z-index:1200;width:min(390px,calc(100vw - 28px));height:min(570px,calc(100vh - 110px));display:flex;flex-direction:column;overflow:hidden;border:1px solid #dbe3ef;border-radius:18px;background:#fff;box-shadow:0 18px 60px #0a193133;color:#0a1931;font:14px Montserrat,Arial,sans-serif}
+.dipvtc-assistant[hidden]{display:none}
+.dipvtc-assistant header{display:flex;align-items:center;justify-content:space-between;padding:15px 17px;background:#0a1931;color:#fff}
+.dipvtc-assistant header strong{font-size:15px}.dipvtc-assistant header button{border:0;background:transparent;color:#fff;font-size:24px;line-height:1;cursor:pointer}
+.dipvtc-assistant-note{margin:12px 14px 4px;padding:10px 12px;border-radius:10px;background:#fff5eb;color:#6d4b35;font-size:11px;line-height:1.55}
+.dipvtc-assistant-links{display:flex;gap:8px;padding:6px 14px}.dipvtc-assistant-links a{flex:1;text-align:center;padding:9px 5px;border:1px solid #dbe3ef;border-radius:9px;color:#0a1931;font-size:11px;font-weight:800}
+.dipvtc-assistant-messages{display:flex;flex:1;flex-direction:column;gap:9px;overflow:auto;padding:12px 14px}
+.dipvtc-assistant-message{max-width:88%;padding:10px 12px;border-radius:12px;font-size:12px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}.dipvtc-assistant-message.assistant{align-self:flex-start;background:#f1f5f9}.dipvtc-assistant-message.user{align-self:flex-end;background:#0a1931;color:#fff}
+.dipvtc-assistant form{display:flex;gap:8px;padding:12px 14px;border-top:1px solid #e8edf5}.dipvtc-assistant form input{min-width:0;flex:1;padding:11px;border:1px solid #cbd5e1;border-radius:10px;font:inherit;font-size:12px}.dipvtc-assistant form button{border:0;border-radius:10px;padding:0 14px;background:#e67e22;color:#fff;font-weight:800;cursor:pointer}.dipvtc-assistant form button:disabled{opacity:.55;cursor:wait}
+@media(max-width:520px){.dipvtc-assistant-launcher{right:12px;bottom:12px}.dipvtc-assistant{right:10px;bottom:70px;width:calc(100vw - 20px);height:min(600px,calc(100vh - 86px))}}
