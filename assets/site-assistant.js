@@ -9,6 +9,7 @@
   const whatsappLink = document.getElementById('dipvtc-assistant-whatsapp');
   const directionsLink = document.getElementById('dipvtc-assistant-directions');
   const history = [];
+  let approvedDirectionsHref = '';
   async function loadWhatsAppSupport() {
     if (!whatsappLink && !directionsLink) return;
     try {
@@ -19,6 +20,7 @@
       const address = String(state.dipvtc_site_address || '').trim();
       if (directionsLink && address) {
         directionsLink.href = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`;
+        approvedDirectionsHref = directionsLink.href;
         directionsLink.hidden = false;
       }
       if (!whatsappLink || !raw) return;
@@ -41,9 +43,35 @@
   function addMessage(role, text) {
     const bubble = document.createElement('div');
     bubble.className = `dipvtc-assistant-message ${role}`;
-    bubble.textContent = text;
+    if (role === 'assistant') renderAssistantAnswer(bubble, text);
+    else bubble.textContent = text;
     messagesNode.appendChild(bubble);
     messagesNode.scrollTop = messagesNode.scrollHeight;
+  }
+  function renderAssistantAnswer(node, answer) {
+    const cleaned = String(answer || '')
+      .replace(/(?:please\s+)?(?:visit|open|go to|contact the school at)\s+(?:https?:\/\/[^\s/]+)?\/?contact\.html\b/gi, 'use the Contact the school button above')
+      .replace(/(?:https?:\/\/[^\s/]+)?\/?contact\.html\b/gi, 'use the Contact the school button above');
+    const mapUrl = /https:\/\/(?:www\.)?google\.com\/maps\/dir\/[^\s<>"']+/gi;
+    let cursor = 0;
+    let match;
+    while ((match = mapUrl.exec(cleaned))) {
+      let raw = match[0];
+      let trailing = '';
+      while (/[.,;!?)]$/.test(raw)) { trailing = raw.slice(-1) + trailing; raw = raw.slice(0, -1); }
+      node.append(document.createTextNode(cleaned.slice(cursor, match.index)));
+      if (approvedDirectionsHref && /^https:\/\/(?:www\.)?google\.com\/maps\/dir\//i.test(raw)) {
+        const link = document.createElement('a');
+        link.href = approvedDirectionsHref;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = 'Open Google Maps directions';
+        node.append(link);
+      } else node.append(document.createTextNode('Please use the Contact the school button above to confirm the address.'));
+      if (trailing) node.append(document.createTextNode(trailing));
+      cursor = match.index + match[0].length;
+    }
+    node.append(document.createTextNode(cleaned.slice(cursor)));
   }
   function setOpen(open) {
     panel.hidden = !open;
@@ -75,7 +103,7 @@
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || 'The assistant is temporarily unavailable. Please contact the school.');
       const answer = String(result.answer || 'I could not find that in the published school information. Please contact the office for help.');
-      pending.textContent = answer;
+      renderAssistantAnswer(pending, answer);
       history.push({ role: 'user', content: text }, { role: 'assistant', content: answer });
       if (history.length > 6) history.splice(0, history.length - 6);
     } catch (error) {

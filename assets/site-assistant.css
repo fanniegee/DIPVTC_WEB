@@ -12,3 +12,5 @@
 @media(max-width:520px){.dipvtc-assistant-launcher{right:12px;bottom:12px}.dipvtc-assistant{right:10px;bottom:70px;width:calc(100vw - 20px);height:min(600px,calc(100vh - 86px))}}
 
 .dipvtc-assistant-links a[hidden]{display:none}
+
+.dipvtc-assistant-message a{color:#1459b8;font-weight:800;text-decoration:underline;overflow-wrap:anywhere}
