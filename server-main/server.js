@@ -944,7 +944,7 @@ async function getPublishedFeeSchedule(student){
   return{department:learnerDepartment,exchangeRate:usableRate,rateSource:market?.source||"Exchange rate unavailable",rateDate:market?.date||null,terms:[...groups.values()]};
 }
 app.get("/api/exchange-rate",async(_req,res,next)=>{try{const rate=await refreshUsdZarMarketRate();res.setHeader("Cache-Control","no-store");res.json(rate)}catch(error){next(error)}});
-const PUBLIC_FOOTER_KEYS = ["dipvtc_admission_sec_title", "dipvtc_admission_sec_text", "dipvtc_news_title", "dipvtc_news_text", "dipvtc_news", "dipvtc_site_footer", "dipvtc_site_email", "dipvtc_site_phones", "dipvtc_site_address"];
+const PUBLIC_FOOTER_KEYS = ["dipvtc_admission_sec_title", "dipvtc_admission_sec_text", "dipvtc_news_title", "dipvtc_news_text", "dipvtc_news", "dipvtc_site_footer", "dipvtc_site_email", "dipvtc_site_phones", "dipvtc_site_address", "dipvtc_site_facebook", "dipvtc_site_whatsapp", "dipvtc_site_instagram", "dipvtc_site_tiktok", "dipvtc_site_youtube", "dipvtc_site_x", "dipvtc_site_linkedin", "dipvtc_site_telegram", "dipvtc_site_threads", "dipvtc_site_pinterest"];
 app.get("/api/public/site-content", async (_req, res, next) => {
   try {
     const state = await stateSnapshot(PUBLIC_FOOTER_KEYS);

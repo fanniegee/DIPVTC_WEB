@@ -1,6 +1,17 @@
-(() => {
+(async () => {
   const storage = window.dipvtcStore || localStorage;
-  const read = key => { try { return storage.getItem(key) || ''; } catch { return ''; } };
+  let sharedState = {};
+  try {
+    const response = await fetch('/api/public/site-content', { cache: 'no-store' });
+    if (response.ok) sharedState = (await response.json()).state || {};
+  } catch {}
+  const read = key => {
+    if (Object.prototype.hasOwnProperty.call(sharedState, key)) {
+      const value = sharedState[key];
+      return typeof value === 'string' ? value : value == null ? '' : JSON.stringify(value);
+    }
+    try { return storage.getItem(key) || ''; } catch { return ''; }
+  };
   const platforms = [
     { name: 'Facebook', key: 'dipvtc_site_facebook', mark: 'f', host: 'facebook.com', domains: ['facebook.com', 'www.facebook.com', 'm.facebook.com'] },
     { name: 'WhatsApp', key: 'dipvtc_site_whatsapp', mark: '◉', host: 'wa.me', domains: ['wa.me', 'www.whatsapp.com', 'whatsapp.com', 'api.whatsapp.com'], chat: true },
@@ -71,8 +82,8 @@
     .social-link-preview>div{max-width:260px}.social-link-preview .preview-brand{width:48px;height:48px;margin:0 auto 12px;border:1px solid #ffd0b0a0;border-radius:16px;background:#ffffff12;color:#ffd0b0;display:grid;place-items:center;font-size:21px;font-weight:900}
     .social-link-preview strong{display:block;color:#ffd0b0;font-size:14px}.social-link-preview span{display:block;color:#e2e9f2;font-size:10px;margin-top:6px}
     .preview-note{padding:8px 12px;background:#f7f8fa;color:#718096;font-size:9px;line-height:1.5}
-    .wa-preview{height:260px;display:flex;align-items:center;justify-content:center;text-align:center;padding:22px;background:radial-gradient(ellipse at center,#e2f7e8,#f8fcf9 65%)}
-    .wa-preview strong{display:block;color:#175d38;font-size:14px}.wa-preview span{display:block;margin-top:5px;color:#5f7768;font-size:10px}
+    .wa-preview{height:260px;display:flex;align-items:center;justify-content:center;text-align:center;padding:22px;background:radial-gradient(ellipse at 18% 18%,#ffffff32,transparent 34%),linear-gradient(140deg,#0a1931,#263f63)}
+    .wa-preview strong{display:block;color:#ffd0b0;font-size:14px}.wa-preview span{display:block;margin-top:5px;color:#e2e9f2;font-size:10px}
     @media(max-width:900px){.social-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
     @media(max-width:700px){.social-grid{grid-template-columns:1fr}}
   `;
@@ -109,31 +120,8 @@
       preview.append(message);
       card.append(preview);
     } else if (platform.key === 'dipvtc_site_facebook') {
-      const preview = document.createElement('div');
-      preview.className = 'social-preview social-link-preview';
-      const loader = createPreviewLoader(platform.mark, 'Load Facebook Page preview', 'Facebook Pages can be previewed with Meta’s Page Plugin.');
-      loader.button.addEventListener('click', () => {
-        loader.button.disabled = true;
-        loader.button.textContent = 'Loading Facebook…';
-        const frame = document.createElement('iframe');
-        const plugin = new URL('https://www.facebook.com/plugins/page.php');
-        plugin.searchParams.set('href', url);
-        plugin.searchParams.set('tabs', 'timeline');
-        plugin.searchParams.set('width', '340');
-        plugin.searchParams.set('height', '260');
-        plugin.searchParams.set('adapt_container_width', 'true');
-        plugin.searchParams.set('hide_cover', 'false');
-        plugin.searchParams.set('show_facepile', 'true');
-        frame.src = plugin.href;
-        frame.title = 'DIPVTC Facebook Page';
-        frame.referrerPolicy = 'no-referrer';
-        frame.allow = 'autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share';
-        preview.classList.remove('social-link-preview');
-        preview.replaceChildren(frame);
-      });
-      preview.append(loader.element);
-      card.append(preview);
-      addText(card, 'div', 'preview-note', 'If the Page Plugin is unavailable, use Open profile to visit the Facebook Page.');
+      addText(card, 'div', 'preview-note', 'Open WhatsApp to message the school directly.');
+      addPlatformLinkPreview(card, platform);
     } else if (platform.key === 'dipvtc_site_instagram') {
       const preview = document.createElement('div');
       preview.className = 'social-preview social-link-preview';
