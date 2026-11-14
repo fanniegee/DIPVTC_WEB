@@ -10,6 +10,7 @@
   const directionsLink = document.getElementById('dipvtc-assistant-directions');
   const history = [];
   let approvedDirectionsHref = '';
+  let approvedWhatsAppHref = '';
   async function loadWhatsAppSupport() {
     if (!whatsappLink && !directionsLink) return;
     try {
@@ -34,6 +35,7 @@
       }
       if (url.protocol !== 'https:' || !['wa.me', 'www.whatsapp.com', 'whatsapp.com', 'api.whatsapp.com'].includes(url.hostname.toLowerCase())) return;
       whatsappLink.href = url.href;
+      approvedWhatsAppHref = url.href;
       whatsappLink.hidden = false;
     } catch {}
   }
@@ -52,22 +54,31 @@
     const cleaned = String(answer || '')
       .replace(/(?:please\s+)?(?:visit|open|go to|contact the school at)\s+(?:https?:\/\/[^\s/]+)?\/?contact\.html\b/gi, 'use the Contact the school button above')
       .replace(/(?:https?:\/\/[^\s/]+)?\/?contact\.html\b/gi, 'use the Contact the school button above');
-    const mapUrl = /https:\/\/(?:www\.)?google\.com\/maps\/dir\/[^\s<>"']+/gi;
+    const actionLink = /https:\/\/(?:www\.)?google\.com\/maps\/dir\/[^\s<>"']+|https:\/\/(?:wa\.me|(?:www\.)?whatsapp\.com|api\.whatsapp\.com)\/[^\s<>"']+|\bwhatsapp(?:\s+support)?\b/gi;
     let cursor = 0;
     let match;
-    while ((match = mapUrl.exec(cleaned))) {
-      let raw = match[0];
+    while ((match = actionLink.exec(cleaned))) {
+      let value = match[0];
+      const isUrl = /^https:\/\//i.test(value);
       let trailing = '';
-      while (/[.,;!?)]$/.test(raw)) { trailing = raw.slice(-1) + trailing; raw = raw.slice(0, -1); }
+      if (isUrl) while (/[.,;!?)]$/.test(value)) { trailing = value.slice(-1) + trailing; value = value.slice(0, -1); }
       node.append(document.createTextNode(cleaned.slice(cursor, match.index)));
-      if (approvedDirectionsHref && /^https:\/\/(?:www\.)?google\.com\/maps\/dir\//i.test(raw)) {
+      const isDirections = /^https:\/\/(?:www\.)?google\.com\/maps\/dir\//i.test(value);
+      const isWhatsAppUrl = /^https:\/\/(?:wa\.me|(?:www\.)?whatsapp\.com|api\.whatsapp\.com)\//i.test(value);
+      const supportPhrase = !isUrl && /^whatsapp(?:\s+support)?$/i.test(value);
+      const href = isDirections ? approvedDirectionsHref : (isWhatsAppUrl || supportPhrase ? approvedWhatsAppHref : '');
+      if (href) {
         const link = document.createElement('a');
-        link.href = approvedDirectionsHref;
+        link.href = href;
         link.target = '_blank';
         link.rel = 'noopener noreferrer';
-        link.textContent = 'Open Google Maps directions';
+        link.textContent = isDirections ? 'Open Google Maps directions' : 'Open WhatsApp support';
         node.append(link);
-      } else node.append(document.createTextNode('Please use the Contact the school button above to confirm the address.'));
+      } else if (isWhatsAppUrl) {
+        node.append(document.createTextNode('Please use the Contact the school button above to request WhatsApp support.'));
+      } else if (isDirections) {
+        node.append(document.createTextNode('Please use the Contact the school button above to confirm the address.'));
+      } else node.append(document.createTextNode(value));
       if (trailing) node.append(document.createTextNode(trailing));
       cursor = match.index + match[0].length;
     }
