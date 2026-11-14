@@ -40,7 +40,7 @@ const OWNER_KEYS = new Set([
   "dipvtc_site_whatsapp", "dipvtc_site_phones", "dipvtc_students", "dipvtc_subjects_image_boxes",
   "dipvtc_tasks", "dipvtc_team", "dipvtc_welcome_text", "dipvtc_welcome_title"
 ]);
-const ADMIN_KEYS = new Set(["dipvtc_courses", "dipvtc_students", "dipvtc_enquiries", "dipvtc_applications", "dipvtc_fees", "dipvtc_school_price_rules"]);
+const ADMIN_KEYS = new Set(["dipvtc_courses", "dipvtc_students", "dipvtc_enquiries", "dipvtc_applications", "dipvtc_fees", "dipvtc_school_price_rules", "dipvtc_site_email", "dipvtc_site_phones", "dipvtc_site_address", "dipvtc_site_whatsapp"]);
 const STAFF_ROLE_CODES = ["principal", "teacher", "admissions", "finance", "content", "front_desk", "driver", "staff"];
 const ADMISSION_SCHOOLS = [
   { code: "cambridge", name: "Cambridge", classes: [
