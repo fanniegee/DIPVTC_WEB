@@ -960,9 +960,30 @@ app.get("/api/public/admission-options",async(_req,res,next)=>{try{const r=await
   "dipvtc_site_whatsapp", "dipvtc_programs_schools", "dipvtc_programs_title", "dipvtc_courses",
   "dipvtc_pathways_v2", "dipvtc_fees", "dipvtc_school_price_rules"
 ];
-const assistantLimiter = rateLimit({ windowMs: 10 * 60 * 1000, limit: 12, standardHeaders: "draft-7", legacyHeaders: false });
+const ASSISTANT_PUBLIC_PAGES = {
+  home: "index.html", admission: "admission.html", courses: "courses.html", programs: "programs.html",
+  contact: "contact.html", news: "news.html", pathway: "pathway.html", registration: "family-registration.html",
+  cambridge: "cambridge.html", zimsec: "zimsec.html", southAfrica: "southafrica.html",
+  practical: "practical.html", upgrade: "upgrade.html", forex: "deityProFx.html"
+};
+function assistantHtmlText(html) {
+  return String(html || "")
+    .replace(/<(script|style|noscript|svg)[^>]*>[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"').replace(/&#39;/gi, "'").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">")
+    .replace(/\s+/g, " ").trim();
+}
+async function loadAssistantPublicPages() {
+  const entries = await Promise.all(Object.entries(ASSISTANT_PUBLIC_PAGES).map(async ([name, file]) => {
+    try {
+      const html = await fs.readFile(path.join(publicRoot, file), "utf8");
+      return [name, assistantHtmlText(html).slice(0, 2200)];
+    } catch { return [name, ""]; }
+  }));
+  return Object.fromEntries(entries.filter(([, text]) => text));
+}const assistantLimiter = rateLimit({ windowMs: 10 * 60 * 1000, limit: 12, standardHeaders: "draft-7", legacyHeaders: false });
 const assistantSensitivePattern = /\b(?:my|our|child(?:'s|’s)|student(?:'s|’s))\s+(?:password|passcode|pin|id(?:\s+number)?|passport|bank|card|medical|health|diagnosis|condition|allergy|doctor)\b|\b(?:password|passcode|pin)\s*(?:is|:|=)\s*\S+|\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b|\b\d{9,}\b/i;
-function assistantPublicText(value, maxLength = 18000) {
+function assistantPublicText(value, maxLength = 30000) {
   let text;
   try { text = JSON.stringify(value); } catch { text = String(value ?? ""); }
   return text.slice(0, maxLength);
@@ -980,16 +1001,17 @@ app.post("/api/public/assistant", assistantLimiter, async (req, res) => {
   }
   try {
     const state = await stateSnapshot(ASSISTANT_PUBLIC_KEYS);
-    const publishedSchoolRules = await fs.readFile(path.join(publicRoot, "family-registration.html"), "utf8").then(html => html.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&quot;/g, "\"").replace(/&#39;/g, "'").replace(/\s+/g, " ").trim().slice(0, 6000)).catch(() => "See /family-registration.html for the current published rules.");
+    const publicPages = await loadAssistantPublicPages();
     const context = {
-      registrationGuide: "Families first read and sign the School Rules & Family Agreement. Then they complete the guardian and learner details, choose a school and class, provide the requested health information, and submit the application to Admissions. A submitted application is not an approval; Admissions reviews it. The assistant can explain fields and published steps, but must not fill, sign, or submit the form.",
+      registrationGuide: "Families first read and sign the School Rules & Family Agreement. Then they complete guardian and learner details, choose a school and class, provide the requested health information, and submit the application to Admissions. Submission is not approval; Admissions reviews it. The assistant may explain fields and published steps but must not fill, sign, or submit the form.",
       publishedFeesAndPaymentRules: { feeStructures: state.dipvtc_fees, schoolPriceRules: state.dipvtc_school_price_rules },
-      publishedSchoolRules,
+      publishedSchoolRules: publicPages.registration || "See /family-registration.html for the current school rules.",
+      currentPublicPageText: Object.fromEntries(Object.entries(publicPages).filter(([key]) => key !== "registration")),
       contactAndCourseInformation: Object.fromEntries(Object.entries(state).filter(([key]) => !["dipvtc_fees", "dipvtc_school_price_rules"].includes(key))),
       publishedAdmissionOptions: ADMISSION_SCHOOLS,
       approvedLinks: ["/family-registration.html", "/contact.html", "/courses.html", "/programs.html"]
     };
-    const instructions = `You are the DIPVTC public website information assistant. Answer politely and briefly using only the public school information supplied below. Do not guess or invent missing facts; say when the published information does not answer a question and direct the visitor to Contact the school at /contact.html. You are informational only: never approve or reject a learner, payment, staff member, or request; never promise account activation; never collect personal information; never request credentials, IDs, health information, or payment details. Do not claim to have submitted a form, contacted staff, changed records, or taken any action. For registration, answer general questions about the form fields and published steps, explain that the family must complete and submit the application themselves, and link to /family-registration.html. Never ask the visitor to provide application data in chat. For contact questions, use only the published contact values. For fees, explain only published fee schedules/rules and make clear the office confirms payments. If asked for private student, parent, staff, or account data, explain you cannot access it. Link only to these approved pages: /family-registration.html, /contact.html, /courses.html, /programs.html.\n\nPUBLIC SCHOOL INFORMATION (JSON):\n${assistantPublicText(context)}`;
+    const instructions = `You are the DIPVTC public website information assistant. Answer politely and briefly in plain text (no Markdown) using the public school information supplied below. Do not guess or invent missing facts; say when the published information does not answer a question and direct the visitor to Contact the school at /contact.html. You are informational only: never approve or reject a learner, payment, staff member, or request; never promise account activation; never collect personal information; never request credentials, IDs, health information, or payment details. Do not claim to have submitted a form, contacted staff, changed records, or taken any action. For registration, answer general questions about the form fields and published steps, explain that the family must complete and submit the application themselves, and link to /family-registration.html. Never ask the visitor to provide application data in chat. For contact questions, use only the published contact values. For fees, explain only published fee schedules/rules and make clear the office confirms payments. If asked for private student, parent, staff, or account data, explain you cannot access it. Link only to these approved pages: /family-registration.html, /contact.html, /courses.html, /programs.html.\n\nPUBLIC SCHOOL INFORMATION (JSON):\n${assistantPublicText(context)}`;
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
@@ -999,12 +1021,13 @@ app.post("/api/public/assistant", assistantLimiter, async (req, res) => {
         store: false,
         max_output_tokens: 500,
         instructions,
-        input: messages.map(message => ({ role: message.role, content: [{ type: "input_text", text: message.content }] }))
+        input: messages.map(message => ({ role: message.role, content: message.content }))
       })
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
-      console.error("Public assistant provider returned HTTP", response.status);
+      const providerError = result.error && typeof result.error === "object" ? result.error : {};
+      console.error("Public assistant provider rejected request:", JSON.stringify({ status: response.status, type: providerError.type || null, code: providerError.code || null, param: providerError.param || null }));
       return res.status(503).json({ error: "The information assistant is temporarily unavailable. Please contact the school." });
     }
     const answer = (result.output || []).flatMap(item => item.type === "message" ? (item.content || []).filter(part => part.type === "output_text").map(part => part.text) : []).join("\n").trim();
