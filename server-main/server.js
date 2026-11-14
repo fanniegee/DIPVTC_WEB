@@ -40,7 +40,7 @@ const OWNER_KEYS = new Set([
   "dipvtc_site_whatsapp", "dipvtc_site_phones", "dipvtc_students", "dipvtc_subjects_image_boxes",
   "dipvtc_tasks", "dipvtc_team", "dipvtc_welcome_text", "dipvtc_welcome_title"
 ]);
-const ADMIN_KEYS = new Set(["dipvtc_courses", "dipvtc_students", "dipvtc_enquiries", "dipvtc_applications", "dipvtc_fees", "dipvtc_school_price_rules", "dipvtc_site_email", "dipvtc_site_phones", "dipvtc_site_address", "dipvtc_site_whatsapp"]);
+const ADMIN_KEYS = new Set(["dipvtc_courses", "dipvtc_students", "dipvtc_enquiries", "dipvtc_applications", "dipvtc_fees", "dipvtc_school_price_rules", "dipvtc_admission_sec_text", "dipvtc_admission_sec_title", "dipvtc_admission_text", "dipvtc_news_text", "dipvtc_news_title", "dipvtc_programs_title", "dipvtc_site_about", "dipvtc_site_aboutTitle", "dipvtc_site_address", "dipvtc_site_coursesTitle", "dipvtc_site_email", "dipvtc_site_facebook", "dipvtc_site_footer", "dipvtc_site_hero", "dipvtc_site_herosub", "dipvtc_site_instagram", "dipvtc_site_linkedin", "dipvtc_site_motto", "dipvtc_site_pinterest", "dipvtc_site_phones", "dipvtc_site_telegram", "dipvtc_site_threads", "dipvtc_site_tiktok", "dipvtc_site_whatsapp", "dipvtc_site_x", "dipvtc_site_youtube", "dipvtc_welcome_text", "dipvtc_welcome_title"]);
 const STAFF_ROLE_CODES = ["principal", "teacher", "admissions", "finance", "content", "front_desk", "driver", "staff"];
 const ADMISSION_SCHOOLS = [
   { code: "cambridge", name: "Cambridge", classes: [
@@ -56,12 +56,13 @@ const ADMISSION_SCHOOLS = [
 ];
 const ZIMSEC_PRIMARY_SUBJECTS = ["English Language", "Shona Mutauro", "Social Sciences", "Science and Technology", "Mathematics", "Physical Education and Arts"];
 const ZIMSEC_CLASS_PREFIX = "zimsec · ";
+const CONTENT_WRITE_KEYS = new Set(["dipvtc_admission_sec_text", "dipvtc_admission_sec_title", "dipvtc_admission_text", "dipvtc_news_text", "dipvtc_news_title", "dipvtc_programs_title", "dipvtc_site_about", "dipvtc_site_aboutTitle", "dipvtc_site_address", "dipvtc_site_coursesTitle", "dipvtc_site_email", "dipvtc_site_facebook", "dipvtc_site_footer", "dipvtc_site_hero", "dipvtc_site_herosub", "dipvtc_site_instagram", "dipvtc_site_linkedin", "dipvtc_site_motto", "dipvtc_site_pinterest", "dipvtc_site_phones", "dipvtc_site_telegram", "dipvtc_site_threads", "dipvtc_site_tiktok", "dipvtc_site_whatsapp", "dipvtc_site_x", "dipvtc_site_youtube", "dipvtc_welcome_text", "dipvtc_welcome_title"]);
 const STAFF_KEYS_BY_ROLE = {
   principal: new Set(["dipvtc_courses", "dipvtc_students", "dipvtc_pupils", "dipvtc_tasks"]),
   teacher: new Set(["dipvtc_courses", "dipvtc_students", "dipvtc_tasks", "dipvtc_course_teachers", "dipvtc_online_timetable", "dipvtc_calendar", "dipvtc_marking_engine_v1"]),
   admissions: new Set(["dipvtc_courses", "dipvtc_students", "dipvtc_pupils", "dipvtc_tasks", "dipvtc_enquiries", "dipvtc_applications"]),
   finance: new Set(["dipvtc_students", "dipvtc_pupils", "dipvtc_tasks", "dipvtc_fees", "dipvtc_invoices", "dipvtc_payments", "di_students", "di_payments", "di_expenses", "di_fees", "di_school"]),
-  content: new Set(["dipvtc_site_hero", "dipvtc_site_herosub", "dipvtc_site_motto", "dipvtc_admission_text", "dipvtc_welcome_title", "dipvtc_welcome_text", "dipvtc_site_coursesTitle", "dipvtc_admission_sec_title", "dipvtc_admission_sec_text", "dipvtc_news_title", "dipvtc_news_text", "dipvtc_site_email", "dipvtc_site_phones", "dipvtc_site_address", "dipvtc_site_footer", "dipvtc_news", "dipvtc_tasks", "dipvtc_changelog"]),
+  content: new Set([...CONTENT_WRITE_KEYS]),
   front_desk: new Set(["dipvtc_students", "dipvtc_pupils", "dipvtc_tasks", "dipvtc_enquiries", "dipvtc_applications", "dipvtc_online_timetable", "dipvtc_calendar"]),
   staff: new Set(["dipvtc_tasks"])
 };
@@ -87,7 +88,7 @@ const PUBLIC_KEYS = new Set([
   "dipvtc_pathways_v2"
 ]);
 const FINANCE_STORAGE_KEYS = new Set(["di_students", "di_payments", "di_expenses", "di_fees", "di_school"]);
-const CONTENT_WRITE_KEYS = new Set(["dipvtc_news_title", "dipvtc_news_text"]);
+
 
 app.disable("x-powered-by");
 app.set("trust proxy", process.env.TRUST_PROXY === "true" ? 1 : false);
@@ -207,7 +208,7 @@ async function authenticate(req, res, next) {
   } catch (error) { next(error); }
 }
 app.use((req, res, next) => {
-  const needsSession = req.path === "/owner.html" || req.path === "/admin.html" || req.path === "/staff.html" || req.path === "/fees.html" || req.path === "/fees.htm" || req.path === "/assets/fees.html" || req.path.startsWith("/exam-mark-entry") ||
+  const needsSession = req.path === "/owner.html" || req.path === "/admin.html" || req.path === "/staff.html" || req.path === "/site-content.html" || req.path === "/fees.html" || req.path === "/fees.htm" || req.path === "/assets/fees.html" || req.path.startsWith("/exam-mark-entry") ||
     req.path === "/registrations.html" || req.path === "/learning.html" || req.path === "/parent-portal.html" || req.path === "/student-portal.html" || req.path === "/payment-review.html" ||
     req.path.startsWith("/api/state") || req.path === "/api/auth/password" || req.path.startsWith("/api/team/invites") || req.path.startsWith("/api/staff/") ||
     req.path.startsWith("/api/admissions/") || req.path.startsWith("/api/portal/") || req.path.startsWith("/api/admin/");
@@ -1022,6 +1023,7 @@ app.get("/owner.html", requireRole("owner"), async (req, res, next) => { try { a
 app.get("/admin.html", requireRole("owner", "admin"), async (req, res, next) => { try { await renderHtml("admin.html", req.user, res); } catch (error) { next(error); } });
 app.get("/payment-review.html", requireRole("owner","admin","finance"), async(req,res,next)=>{try{await renderHtml("payment-review.html",req.user,res);}catch(e){next(e);}});
 app.get("/staff.html", requireRole("owner","admin",...STAFF_ROLE_CODES), async (req, res, next) => { try { await renderHtml("staff.html", req.user, res); } catch (error) { next(error); } });
+app.get("/site-content.html", requireRole("owner","admin","content"), async (req, res, next) => { try { await renderHtml("site-content.html", req.user, res); } catch (error) { next(error); } });
 app.get(/^\/exam-mark-entry$/, requireRole("teacher"), (_req, res) => res.redirect("/exam-mark-entry/"));
 app.get("/exam-mark-entry/", requireRole("teacher"), async (req, res, next) => { try { await renderHtml("exam-mark-entry/index.html", req.user, res); } catch (error) { next(error); } });
 const feePageRoles = ["owner", "finance"];

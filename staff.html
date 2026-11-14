@@ -61,7 +61,7 @@ if(hasRole("teacher")&&!hasRole("principal"))menu.push({id:"academic",label:"Cla
 if(hasRole("teacher"))menu.push({id:"exam-mark-entry",label:"Exam Mark-Entry",href:"/exam-mark-entry/"});
 if(hasRole("admissions")||hasRole("front_desk"))menu.push({id:"admissions",label:hasRole("front_desk")?"Admissions & Reception":"Admissions"});
 if(hasRole("finance"))menu.push({id:"finance",label:"Fees and payments"});
-if(hasRole("content"))menu.push({id:"content",label:"Website news"});
+if(hasRole("content"))menu.push({id:"site-content",label:"All Site Content",href:"/site-content.html"});
 const nav=document.getElementById("nav");
 for(const item of menu){const button=document.createElement("button");button.textContent=item.label;button.dataset.page=item.id;button.classList.toggle("active",item.id==="overview");button.addEventListener("click",()=>item.href?location.assign(item.href):showPage(item.id));nav.append(button);}
 function showPage(name){document.querySelectorAll(".page").forEach(page=>page.classList.toggle("active",page.id===`page-${name}`));document.querySelectorAll(".nav button").forEach(button=>button.classList.toggle("active",button.dataset.page===name));}
