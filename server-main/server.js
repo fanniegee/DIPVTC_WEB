@@ -993,71 +993,141 @@ function assistantHtmlText(html) {
     .replace(/&quot;/gi, '"').replace(/&#39;/gi, "'").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">")
     .replace(/\s+/g, " ").trim();
 }
-async function loadAssistantPublicPages() {
-  const entries = await Promise.all(Object.entries(ASSISTANT_PUBLIC_PAGES).map(async ([name, file]) => {
-    try {
-      const html = await fs.readFile(path.join(publicRoot, file), "utf8");
-      return [name, assistantHtmlText(html).slice(0, 2200)];
-    } catch { return [name, ""]; }
+const assistantPageTextCache = new Map();
+function assistantPageNames(question) {
+  const q=String(question||"").toLowerCase(), names=new Set();
+  if(/address|location|where|direction|contact|phone|email|whatsapp|call|reach/.test(q)) names.add("contact");
+  if(/fee|tuition|cost|price|payment|paid|instal|installment|registration charge/.test(q)) { names.add("admission"); names.add("registration"); }
+  if(/registration|register|enrol|enroll|admission|apply|application|rules|agreement/.test(q)) { names.add("registration"); names.add("admission"); }
+  if(/course|subject|class|grade|form|level|department|study|program|curriculum|teach/.test(q)) { names.add("courses"); names.add("programs"); }
+  if(/cambridge/.test(q)) names.add("cambridge");
+  if(/zimsec/.test(q)) names.add("zimsec");
+  if(/south africa|caps|sacaps/.test(q)) names.add("southAfrica");
+  if(/forex|trading|deitypro|fx/.test(q)) names.add("forex");
+  if(/practical|driving|caregiver|music/.test(q)) names.add("practical");
+  if(/upgrade|bridging/.test(q)) names.add("upgrade");
+  if(/news|event|notice/.test(q)) names.add("news");
+  if(/pathway|pathways/.test(q)) names.add("pathway");
+  if(!names.size) ["home","programs","courses","admission"].forEach(name=>names.add(name));
+  return [...names].slice(0,4);
+}
+async function loadAssistantPublicPages(question) {
+  const names=assistantPageNames(question);
+  const entries=await Promise.all(names.map(async name=>{
+    if(!assistantPageTextCache.has(name)){
+      const file=ASSISTANT_PUBLIC_PAGES[name];
+      assistantPageTextCache.set(name,fs.readFile(path.join(publicRoot,file),"utf8").then(assistantHtmlText).then(text=>text.slice(0,750)).catch(()=>""));
+    }
+    return [name,await assistantPageTextCache.get(name)];
   }));
-  return Object.fromEntries(entries.filter(([, text]) => text));
+  return Object.fromEntries(entries.filter(([,text])=>text));
+}
+function compactAssistantValue(raw,maxLength=1400) {
+  const value=decodeStoredState(raw,raw);
+  function trim(input,depth=0){
+    if(typeof input==="string")return input.slice(0,180);
+    if(input===null||typeof input!=="object")return input;
+    if(depth>=3)return Array.isArray(input)?`[${input.length} items]`:"[details omitted]";
+    if(Array.isArray(input))return input.slice(0,18).map(item=>trim(item,depth+1));
+    return Object.fromEntries(Object.entries(input).slice(0,18).map(([key,item])=>[key,trim(item,depth+1)]));
+  }
+  let compact=trim(value);
+  if(Array.isArray(compact))while(compact.length&&JSON.stringify(compact).length>maxLength)compact.pop();
+  else if(compact&&typeof compact==="object")while(Object.keys(compact).length&&JSON.stringify(compact).length>maxLength)delete compact[Object.keys(compact).at(-1)];
+  if(JSON.stringify(compact).length>maxLength)return String(compact).slice(0,maxLength);
+  return compact;
 }const assistantLimiter = rateLimit({ windowMs: 10 * 60 * 1000, limit: 12, standardHeaders: "draft-7", legacyHeaders: false });
 const assistantSensitivePattern = /\b(?:my|our|child(?:'s|’s)|student(?:'s|’s))\s+(?:password|passcode|pin|id(?:\s+number)?|passport|bank|card|medical|health|diagnosis|condition|allergy|doctor)\b|\b(?:password|passcode|pin)\s*(?:is|:|=)\s*\S+|\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b|\b\d{9,}\b/i;
 function assistantPublicText(value, maxLength = 30000) {
-  let text;
-  try { text = JSON.stringify(value); } catch { text = String(value ?? ""); }
-  return text.slice(0, maxLength);
-}
-async function generatePublicAssistantAnswer(messages, req, channel = "website") {
+  let parsed;
+  try { parsed = value; } catch { parsed = String(value ?? ""); }
+  if(!parsed||typeof parsed!=="object"||Array.isArray(parsed))return JSON.stringify(parsed??"").slice(0,maxLength);
+  const compact={};
+  for(const [key,item] of Object.entries(parsed)){
+    const candidate={...compact,[key]:item};
+    if(JSON.stringify(candidate).length<=maxLength){compact[key]=item;continue;}
+    if(key==="relevantPublishedPages"&&item&&typeof item==="object"){
+      const pageSubset={};
+      for(const [page,text] of Object.entries(item)){
+        const pages={...pageSubset,[page]:text};
+        if(JSON.stringify({...compact,relevantPublishedPages:pages}).length>maxLength)break;
+        pageSubset[page]=text;
+      }
+      if(Object.keys(pageSubset).length)compact.relevantPublishedPages=pageSubset;
+    }
+  }
+  return JSON.stringify(compact);
+}function assistantDirectFallback(question,context,channel="website") {
+  const q=String(question||"").toLowerCase(),contact=context.authoritativeContactInformation||{};
+  if(/address|location|where|direction|directions|map|find the school/.test(q)){
+    if(!contact.address)return "The school has not published its address yet. Please use the Contact the school button above.";
+    const route=context.approvedDirectionsLink?` Directions: ${context.approvedDirectionsLink}`:"";
+    return `The school address is ${contact.address}.${route}`;
+  }
+  if(/registration|register|enrol|enroll|admission|application|apply/.test(q)&&context.registrationGuide){
+    return `${context.registrationGuide} Start with the Family registration option${channel==="whatsapp"?`: ${context.approvedWebsiteLinks.registration}`:" above"}.`;
+  }
+  if(/contact|phone|email|call|whatsapp|reach/.test(q)){
+    const details=[contact.email?`Email: ${contact.email}`:"",contact.phones?`Phone: ${contact.phones}`:""].filter(Boolean).join(". ");
+    if(channel==="whatsapp")return `For other school contact details, visit ${context.approvedWebsiteLinks.contact}.`;
+    return details?`${details}. For WhatsApp support, use the WhatsApp support button above.`:"Please use the Contact the school button above for current contact details.";
+  }
+  return "";
+}async function generatePublicAssistantAnswer(messages, req, channel = "website") {
   const apiKey = String(process.env.OPENAI_API_KEY || "").trim();
   if (!apiKey) throw Object.assign(new Error("The school information assistant is not enabled yet."), { status: 503 });
-  if (!Array.isArray(messages) || !messages.length || messages.length > 8 || messages.some(message => !["user", "assistant"].includes(message?.role) || typeof message?.content !== "string" || message.content.length > 1000)) throw Object.assign(new Error("Please send a short school information question."), { status: 400 });
+  if (!Array.isArray(messages) || !messages.length || messages.length > 6 || messages.some(message => !["user", "assistant"].includes(message?.role) || typeof message?.content !== "string" || message.content.length > 900)) throw Object.assign(new Error("Please send a short school information question."), { status: 400 });
   const containsPrivateDetails = messages.filter(message => message.role === "user").some(message => assistantSensitivePattern.test(message.content));
   if (containsPrivateDetails) throw Object.assign(new Error("For privacy, do not send passwords, ID numbers, payment details, personal email or health information here. Please contact the school office."), { status: 400 });
+  const question=[...messages].reverse().find(message=>message.role==="user")?.content||"";
   const state = await stateSnapshot(ASSISTANT_PUBLIC_KEYS);
-  const publicPages = await loadAssistantPublicPages();
-  const siteBase = String(process.env.PUBLIC_BASE_URL || "https://dipvtc.com").trim().replace(/\/+$/, "");
-  const context = {
-    registrationGuide: "Families first read and sign the School Rules & Family Agreement. Then they complete guardian and learner details, choose a school and class, provide the requested health information, and submit the application to Admissions. Submission is not approval; Admissions reviews it. The assistant may explain fields and published steps but must not fill, sign, or submit the form.",
-    publishedFeesAndPaymentRules: { feeStructures: state.dipvtc_fees, schoolPriceRules: state.dipvtc_school_price_rules },
-    publishedSchoolRules: publicPages.registration || "Use the Family registration page to view the current school rules.",
-    currentPublicPageText: Object.fromEntries(Object.entries(publicPages).filter(([key]) => !["registration", "home", "contact"].includes(key))),
-    authoritativeContactInformation: { address: String(state.dipvtc_site_address || "").trim(), email: String(state.dipvtc_site_email || "").trim(), phones: String(state.dipvtc_site_phones || "").trim(), whatsapp: String(state.dipvtc_site_whatsapp || "").trim() },
-    approvedDirectionsLink: String(state.dipvtc_site_address || "").trim() ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(String(state.dipvtc_site_address).trim())}` : "",
-    approvedWebsiteLinks: { registration: `${siteBase}/family-registration.html`, contact: `${siteBase}/contact.html`, courses: `${siteBase}/courses.html`, programs: `${siteBase}/programs.html` },
-    contactAndCourseInformation: Object.fromEntries(Object.entries(state).filter(([key]) => !["dipvtc_fees", "dipvtc_school_price_rules"].includes(key))),
-    publishedAdmissionOptions: ADMISSION_SCHOOLS
+  const publicPages = await loadAssistantPublicPages(question);
+  const siteBase = String(process.env.PUBLIC_BASE_URL || "https://www.dipvtc.com").trim().replace(/\/+$/, "");
+  const needsFees=/fee|tuition|cost|price|payment|paid|instal|installment|registration charge/i.test(question);
+  const needsRegistration=/registration|register|enrol|enroll|admission|apply|application|rules|agreement/i.test(question);
+  const needsCourses=/course|subject|class|grade|form|level|department|study|program|curriculum|teach|cambridge|zimsec|caps|forex|trading/i.test(question);
+  const context={
+    authoritativeContactInformation:{address:String(decodeStoredState(state.dipvtc_site_address,"")||"").trim(),email:String(decodeStoredState(state.dipvtc_site_email,"")||"").trim(),phones:String(decodeStoredState(state.dipvtc_site_phones,"")||"").trim(),whatsapp:String(decodeStoredState(state.dipvtc_site_whatsapp,"")||"").trim()},
+    approvedDirectionsLink:String(decodeStoredState(state.dipvtc_site_address,"")||"").trim()?`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(String(decodeStoredState(state.dipvtc_site_address,"")).trim())}`:"",
+    approvedWebsiteLinks:{registration:`${siteBase}/family-registration.html`,contact:`${siteBase}/contact.html`,courses:`${siteBase}/courses.html`,programs:`${siteBase}/programs.html`},
+    relevantPublishedPages:publicPages
   };
+  if(needsFees)context.publishedFeesAndPaymentRules={feeStructures:compactAssistantValue(state.dipvtc_fees,2400),schoolPriceRules:compactAssistantValue(state.dipvtc_school_price_rules,1800)};
+  if(needsRegistration){context.registrationGuide="Families first read and sign the School Rules & Family Agreement. Then they complete guardian and learner details, choose a school and class, provide requested information, and submit the application to Admissions. Submission is not approval; Admissions reviews it. The assistant may explain published steps but must not fill, sign, or submit the form.";context.publishedSchoolRules=publicPages.registration||"Use the Family registration page to view current school rules.";}
+  if(needsCourses){context.publishedPrograms=compactAssistantValue(state.dipvtc_programs_schools,1200);context.publishedCourses=compactAssistantValue(state.dipvtc_courses,2200);context.publishedPathways=compactAssistantValue(state.dipvtc_pathways_v2,1200);context.publishedAdmissionOptions=ADMISSION_SCHOOLS.map(school=>({school:school.name,classes:school.classes.slice(0,20).map(item=>item.name)}));}
+  if(!needsFees&&!needsRegistration&&!needsCourses){context.schoolOverview={welcome:compactAssistantValue(state.dipvtc_welcome_text,500),motto:compactAssistantValue(state.dipvtc_site_motto,160),programs:compactAssistantValue(state.dipvtc_programs_schools,900)};}
   const channelInstructions = channel === "whatsapp"
     ? "You are replying inside WhatsApp, so there are no page buttons above. For school pages, use only the matching full HTTPS URLs in approvedWebsiteLinks; WhatsApp will make those links clickable. For directions, include only approvedDirectionsLink when present. The visitor is already contacting the school on WhatsApp; do not repeat or invent a support phone number."
     : "Do not write page filenames, raw website paths, or raw URLs for school pages. Refer to the named navigation buttons above. When giving directions, include the exact supplied approvedDirectionsLink as a standalone URL so the page can render it as a clickable link. For WhatsApp support, if authoritativeContactInformation.whatsapp is present, tell the visitor to click the WhatsApp support button above and do not print the raw number or URL; if it is absent, direct them to the Contact the school button above.";
-  const instructions = `You are the DIPVTC public website information assistant. Answer politely and briefly in plain text using the public school information supplied below. Do not guess or invent missing facts; if published information does not answer a question, direct the visitor to the school’s contact options. You are informational only: never approve or reject a learner, payment, staff member, or request; never promise account activation; never collect personal information; never request credentials, IDs, health information, or payment details. Do not claim to have submitted a form, contacted staff, changed records, or taken any action. For registration, answer general questions about form fields and published steps, explain that the family must complete and submit the application themselves, and direct them to the registration option. Never ask for application data in chat. For address, location, phone, email, and WhatsApp questions, use only authoritativeContactInformation. Ignore conflicting address text in pages; never use a page-text address as a fallback. If authoritativeContactInformation.address is empty, say the school has not published its address. For directions, use only approvedDirectionsLink and never invent coordinates or a destination. For fees, explain only published fee schedules/rules and make clear the office confirms payments. If asked for private student, parent, staff, or account data, explain you cannot access it. ${channelInstructions}\n\nPUBLIC SCHOOL INFORMATION (JSON):\n${assistantPublicText(context)}`;
+  const instructions = `You are the DIPVTC public website information assistant. Answer politely and briefly in plain text using only the relevant published school information supplied below. Do not guess missing facts; when information is missing, direct the visitor to school contact options. You are informational only: never approve or reject a learner, payment, staff member, or request; never promise account activation; never collect personal information; never request credentials, IDs, health information, or payment details. Do not claim to submit forms or change records. For registration, explain that the family must complete and submit the application themselves; never ask for application data in chat. For contact and directions use only authoritativeContactInformation and approvedDirectionsLink. For fees explain only published fee schedules/rules and state that the office confirms payments. For private student, parent, staff, or account data, explain you cannot access it. ${channelInstructions}\n\nPUBLIC SCHOOL INFORMATION (JSON):\n${assistantPublicText(context,8500)}`;
+  const inputMessages=messages.slice(-4).map((message,index)=>({role:message.role,content:message.content.slice(index===messages.slice(-4).length-1?0:-420)}));
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    signal: AbortSignal.timeout(channel === "whatsapp" ? 10000 : 18000),
-    body: JSON.stringify({ model: process.env.OPENAI_MODEL || "gpt-6-luna", store: false, max_output_tokens: 500, instructions, input: messages.map(message => ({ role: message.role, content: message.content })) })
+    signal: AbortSignal.timeout(channel === "whatsapp" ? 12000 : 25000),
+    body: JSON.stringify({ model: process.env.OPENAI_MODEL || "gpt-6-luna", store: false, max_output_tokens: 350, instructions, input: inputMessages })
   });
   const result = await response.json().catch(() => ({}));
   if (!response.ok) {
     const providerError = result.error && typeof result.error === "object" ? result.error : {};
-    console.error("Public assistant provider rejected request:", JSON.stringify({ status: response.status, type: providerError.type || null, code: providerError.code || null, param: providerError.param || null }));
-    throw Object.assign(new Error("The information assistant is temporarily unavailable."), { status: 503 });
+    console.error("Public assistant provider rejected request:", JSON.stringify({ status: response.status, type: providerError.type || null, code: providerError.code || null, param: providerError.param || null, retryAfter: response.headers.get("retry-after") || null }));
+    if(response.status===429){const fallback=assistantDirectFallback(question,context,channel);if(fallback)return fallback;throw Object.assign(new Error("The assistant is busy answering questions right now. Your question is ready to retry in the box below; please try again shortly, or use Contact the school."),{status:429});}
+    throw Object.assign(new Error("The information assistant is temporarily unavailable. Please try again shortly or contact the school."), { status: 503 });
   }
   const answer = (result.output || []).flatMap(item => item.type === "message" ? (item.content || []).filter(part => part.type === "output_text").map(part => part.text) : []).join("\n").trim();
-  if (!answer) throw Object.assign(new Error("The information assistant could not prepare an answer."), { status: 503 });
+  if (!answer) throw Object.assign(new Error("The information assistant could not prepare an answer. Please try again."), { status: 503 });
   return answer.slice(0, 4000);
-}
-app.post("/api/public/assistant", assistantLimiter, async (req, res) => {
+}app.post("/api/public/assistant", assistantLimiter, async (req, res) => {
   try {
-    const messages = Array.isArray(req.body?.messages) ? req.body.messages.slice(-8) : [];
+    const messages = Array.isArray(req.body?.messages) ? req.body.messages.slice(-4) : [];
     const answer = await generatePublicAssistantAnswer(messages, req, "website");
     res.setHeader("Cache-Control", "no-store");
     return res.json({ answer });
   } catch (error) {
     if (error.status === 400) return res.status(400).json({ error: error.message });
+    if (error.status === 429) return res.status(429).json({ error: error.message });
     console.error("Public assistant request failed:", error.name || "Error");
-    return res.status(503).json({ error: "The information assistant is temporarily unavailable. Please contact the school." });
+    return res.status(503).json({ error: error.message || "The information assistant is temporarily unavailable. Please try again shortly or contact the school." });
   }
 });
 function safeTokenEqual(expected, actual) {

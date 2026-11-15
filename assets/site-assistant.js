@@ -13,6 +13,7 @@
   let approvedWhatsAppHref = '';
   async function loadWhatsAppSupport() {
     if (!whatsappLink && !directionsLink) return;
+    let requestStatus = 0;
     try {
       const response = await fetch('/api/public/site-content', { cache: 'no-store' });
       if (!response.ok) return;
@@ -105,12 +106,14 @@
     pending.textContent = 'Checking the school’s published information…';
     messagesNode.appendChild(pending);
     messagesNode.scrollTop = messagesNode.scrollHeight;
+    let requestStatus = 0;
     try {
       const response = await fetch('/api/public/assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: [...history.slice(-6), { role: 'user', content: text }] })
       });
+      requestStatus = response.status;
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || 'The assistant is temporarily unavailable. Please contact the school.');
       const answer = String(result.answer || 'I could not find that in the published school information. Please contact the office for help.');
@@ -119,6 +122,7 @@
       if (history.length > 6) history.splice(0, history.length - 6);
     } catch (error) {
       pending.textContent = error.message || 'The assistant is temporarily unavailable. Please contact the school.';
+      if (!requestStatus || requestStatus === 429 || requestStatus >= 500) input.value = text;
     } finally {
       busy = false;
       send.disabled = false;
