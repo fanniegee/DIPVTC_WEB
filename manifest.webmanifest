@@ -1,0 +1,24 @@
+{
+  "id": "/family-app",
+  "name": "DIPVTC Family Portal",
+  "short_name": "DIPVTC Family",
+  "description": "A simple phone-friendly way for families to access DIPVTC parent and student portals.",
+  "start_url": "/portal-login.html?source=installed-app",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "theme_color": "#0a1931",
+  "background_color": "#fff7eb",
+  "categories": ["education"],
+  "prefer_related_applications": false,
+  "icons": [
+    { "src": "/assets/images/dipvtc-pwa-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/images/dipvtc-pwa-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/images/dipvtc-pwa-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Parent sign in", "short_name": "Parent", "url": "/login.html?next=%2Fparent-portal.html", "icons": [{ "src": "/assets/images/dipvtc-pwa-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Student sign in", "short_name": "Student", "url": "/login.html?next=%2Fstudent-portal.html", "icons": [{ "src": "/assets/images/dipvtc-pwa-192.png", "sizes": "192x192", "type": "image/png" }] }
+  ]
+}

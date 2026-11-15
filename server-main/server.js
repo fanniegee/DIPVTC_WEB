@@ -309,7 +309,7 @@ async function renderHtml(fileName, user, res) {
   html = html.replace(/\blocalStorage\b/g, "window.dipvtcStore").replace(/<script\b/i, `${bootstrap}<script`);
   const branding = await stateSnapshot(BRANDING_STATE_KEYS);
   const favicon = safeBrandingAsset(branding.dipvtc_site_favicon_url, "https://www.dipvtc.com/assets/images/dipvtc-favicon.svg");
-  const iconLinks = `<link rel="icon" type="image/svg+xml" href="${htmlAttribute(favicon)}"><link rel="apple-touch-icon" href="${htmlAttribute(favicon)}">`;
+  const iconLinks = `<link rel="icon" type="image/svg+xml" href="${htmlAttribute(favicon)}"><link rel="apple-touch-icon" href="/assets/images/dipvtc-pwa-192.png">`;
   html = html.replace(/<link\b[^>]*\brel=["'](?:icon|shortcut icon|apple-touch-icon)["'][^>]*>/gi, "");
   if (fileName === "index.html") {
     const shareImage = safeBrandingAsset(branding.dipvtc_site_share_image, "https://www.dipvtc.com/assets/images/dipvtc-share-preview.png");
