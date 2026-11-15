@@ -48,7 +48,7 @@
 <label style="font-size:11px;font-weight:900">Threads</label><input id="siteThreads" class="input" placeholder="https://threads.net/@your-school">
 <label style="font-size:11px;font-weight:900">Pinterest</label><input id="sitePinterest" class="input" placeholder="https://pinterest.com/your-school">
 </div>
-<button class="btn btn-dark" style="width:100%;margin-top:18px" onclick="saveSiteContent()">Save All → Update ALL Pages</button>
+<button id="saveSiteContentButton" class="btn btn-dark" style="width:100%;margin-top:18px" onclick="saveSiteContent()">Save All → Update ALL Pages</button>
 <small id="siteSaveMsg" style="color:#27ae60;font-weight:bold;display:none;margin-top:8px">Saved!</small>
 </div></div>
 <div id="main-taskcenter" class="content-section">
@@ -211,39 +211,41 @@ document.getElementById('siteTelegram').value=localStorage.getItem('dipvtc_site_
 document.getElementById('siteThreads').value=localStorage.getItem('dipvtc_site_threads')||'';
 document.getElementById('sitePinterest').value=localStorage.getItem('dipvtc_site_pinterest')||'';
 }
-function saveSiteContent(){
-localStorage.setItem('dipvtc_site_hero',document.getElementById('siteHeroTitle').value);
-localStorage.setItem('dipvtc_site_herosub',document.getElementById('siteHeroSub').value);
-localStorage.setItem('dipvtc_site_motto',document.getElementById('siteMotto').value);
-localStorage.setItem('dipvtc_admission_text',document.getElementById('siteAdmission').value);
-localStorage.setItem('dipvtc_welcome_title',document.getElementById('siteWelcomeTitle').value);
-localStorage.setItem('dipvtc_welcome_text',document.getElementById('siteWelcomeText').value);
-localStorage.setItem('dipvtc_programs_title',document.getElementById('siteProgramsTitle').value);
-localStorage.setItem('dipvtc_site_aboutTitle',document.getElementById('siteAboutTitle').value);
-localStorage.setItem('dipvtc_site_about',document.getElementById('siteAbout').value);
-localStorage.setItem('dipvtc_admission_sec_title',document.getElementById('siteAdmissionSecTitle').value);
-localStorage.setItem('dipvtc_admission_sec_text',document.getElementById('siteAdmissionSecText').value);
-localStorage.setItem('dipvtc_site_coursesTitle',document.getElementById('siteCoursesTitle').value);
-localStorage.setItem('dipvtc_news_title',document.getElementById('siteNewsTitle').value);
-localStorage.setItem('dipvtc_news_text',document.getElementById('siteNewsText').value);
-localStorage.setItem('dipvtc_site_email',document.getElementById('siteEmail').value);
-localStorage.setItem('dipvtc_site_phones',document.getElementById('sitePhones').value);
-localStorage.setItem('dipvtc_site_address',document.getElementById('siteAddress').value);
-localStorage.setItem('dipvtc_site_footer',document.getElementById('siteFooter').value);
-localStorage.setItem('dipvtc_site_share_image',document.getElementById('siteShareImage').value.trim());
-localStorage.setItem('dipvtc_site_favicon_url',document.getElementById('siteFaviconUrl').value.trim());
-localStorage.setItem('dipvtc_site_facebook',document.getElementById('siteFacebook').value);
-localStorage.setItem('dipvtc_site_whatsapp',document.getElementById('siteWhatsapp').value);
-localStorage.setItem('dipvtc_site_instagram',document.getElementById('siteInstagram').value);
-localStorage.setItem('dipvtc_site_tiktok',document.getElementById('siteTiktok').value);
-localStorage.setItem('dipvtc_site_youtube',document.getElementById('siteYoutube').value);
-localStorage.setItem('dipvtc_site_x',document.getElementById('siteX').value);
-localStorage.setItem('dipvtc_site_linkedin',document.getElementById('siteLinkedin').value);
-localStorage.setItem('dipvtc_site_telegram',document.getElementById('siteTelegram').value);
-localStorage.setItem('dipvtc_site_threads',document.getElementById('siteThreads').value);
-localStorage.setItem('dipvtc_site_pinterest',document.getElementById('sitePinterest').value);
-document.getElementById('siteSaveMsg').style.display='block';
-setTimeout(()=>{document.getElementById('siteSaveMsg').style.display='none'},3500);
+async function saveSiteContent(){
+const entries={
+'dipvtc_site_hero':document.getElementById('siteHeroTitle').value,
+'dipvtc_site_herosub':document.getElementById('siteHeroSub').value,
+'dipvtc_site_motto':document.getElementById('siteMotto').value,
+'dipvtc_admission_text':document.getElementById('siteAdmission').value,
+'dipvtc_welcome_title':document.getElementById('siteWelcomeTitle').value,
+'dipvtc_welcome_text':document.getElementById('siteWelcomeText').value,
+'dipvtc_programs_title':document.getElementById('siteProgramsTitle').value,
+'dipvtc_site_aboutTitle':document.getElementById('siteAboutTitle').value,
+'dipvtc_site_about':document.getElementById('siteAbout').value,
+'dipvtc_admission_sec_title':document.getElementById('siteAdmissionSecTitle').value,
+'dipvtc_admission_sec_text':document.getElementById('siteAdmissionSecText').value,
+'dipvtc_site_coursesTitle':document.getElementById('siteCoursesTitle').value,
+'dipvtc_news_title':document.getElementById('siteNewsTitle').value,
+'dipvtc_news_text':document.getElementById('siteNewsText').value,
+'dipvtc_site_email':document.getElementById('siteEmail').value,
+'dipvtc_site_phones':document.getElementById('sitePhones').value,
+'dipvtc_site_address':document.getElementById('siteAddress').value,
+'dipvtc_site_footer':document.getElementById('siteFooter').value,
+'dipvtc_site_share_image':document.getElementById('siteShareImage').value.trim(),
+'dipvtc_site_favicon_url':document.getElementById('siteFaviconUrl').value.trim(),
+'dipvtc_site_facebook':document.getElementById('siteFacebook').value,
+'dipvtc_site_whatsapp':document.getElementById('siteWhatsapp').value,
+'dipvtc_site_instagram':document.getElementById('siteInstagram').value,
+'dipvtc_site_tiktok':document.getElementById('siteTiktok').value,
+'dipvtc_site_youtube':document.getElementById('siteYoutube').value,
+'dipvtc_site_x':document.getElementById('siteX').value,
+'dipvtc_site_linkedin':document.getElementById('siteLinkedin').value,
+'dipvtc_site_telegram':document.getElementById('siteTelegram').value,
+'dipvtc_site_threads':document.getElementById('siteThreads').value,
+'dipvtc_site_pinterest':document.getElementById('sitePinterest').value
+};
+const status=document.getElementById('siteSaveMsg'),button=document.getElementById('saveSiteContentButton');status.style.display='block';status.style.color='#64748b';status.textContent='Saving to the server…';button.disabled=true;
+try{const response=await fetch('/api/state/batch',{method:'PUT',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({entries})}),data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'The site content could not be saved.');for(const [key,value] of Object.entries(entries)){if(window.dipvtcStore?.setServerItem)window.dipvtcStore.setServerItem(key,String(value));else window.dipvtcStore?.setItem(key,String(value));}status.style.color='#176b43';status.textContent='Saved on the server. Public pages will use these settings.';}catch(error){status.style.color='#b91c1c';status.textContent='Could not save: '+error.message;}finally{button.disabled=false;setTimeout(()=>{status.style.display='none'},5000)}
 }
 let defaultSchools=[
 {name:"Cambridge",desc:"ECD to A-Levels",link:"cambridge.html",logo:"images/cambridge.png",backgroundImage:"/assets/images/cambridge-igcse.png",color:"#1e90ff"},

@@ -77,7 +77,7 @@ function loadPrograms(){
       const link=escapeHtml(safeLocalLink(s.link));
       const bg=cssImageUrl(schoolBackground(s));
       const rgb=palette[0].match(/^#([0-9a-f]{6})$/i)?.[1]||'ffffff';
-      const tint=`rgba(${parseInt(rgb.slice(0,2),16)},${parseInt(rgb.slice(2,4),16)},${parseInt(rgb.slice(4,6),16)},.84)`;
+      const tint=`rgba(${parseInt(rgb.slice(0,2),16)},${parseInt(rgb.slice(2,4),16)},${parseInt(rgb.slice(4,6),16)},.62)`;
       return `<article class="school" style="--accent:${accent};--card-bg:${palette[0]};--card-tint:${tint};--card-image:${bg};--level-bg:${palette[1]}"><div class="logo-box"><img src="${logo}" alt="${name} logo" loading="lazy" onerror="this.onerror=null;this.src='/assets/images/dipvtc.png'"></div><h2>${name}</h2><p class="level">${desc}</p><a class="open-link" href="${link}" style="background:${accent}">Explore program</a></article>`;
     }).join('');
   }catch(error){

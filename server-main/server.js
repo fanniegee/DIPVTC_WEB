@@ -309,11 +309,23 @@ function stateWithIdentity(snapshot, user) {
   return state;
 }
 const BRANDING_STATE_KEYS = ["dipvtc_site_share_image", "dipvtc_site_favicon_url"];
-function safeBrandingAsset(value, fallback) {
+function safeBrandingAsset(value, fallback, updatedAt) {
   const raw = String(decodeStoredState(value, "") || "").trim();
-  if (/^https:\/\/[^\s"'<>]+$/i.test(raw)) return raw;
-  if (/^\/assets\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]+$/.test(raw)) return `https://www.dipvtc.com${raw}`;
-  return fallback;
+  let asset = "";
+  if (/^https:\/\/[^\s"'<>]+$/i.test(raw)) asset = raw;
+  else {
+    let publicPath = raw;
+    if (/^\/?images\//i.test(publicPath)) publicPath = publicPath.replace(/^\/?images\//i, "/assets/images/");
+    else if (/^\/?assets\//i.test(publicPath)) publicPath = publicPath.replace(/^\/?assets\//i, "/assets/");
+    if (/^\/assets\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]+$/.test(publicPath)) asset = `https://www.dipvtc.com${publicPath}`;
+  }
+  if (!asset) return fallback;
+  if (updatedAt && asset.startsWith("https://www.dipvtc.com/assets/")) {
+    const url = new URL(asset);
+    url.searchParams.set("v", String(new Date(updatedAt).getTime()));
+    return url.toString();
+  }
+  return asset;
 }
 function htmlAttribute(value) {
   return String(value).replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
@@ -328,12 +340,13 @@ async function renderHtml(fileName, user, res) {
   const userPayload = scopedUser ? { id: scopedUser.id, name: scopedUser.display_name, email: scopedUser.email, role: scopedUser.role, roleTitle: scopedUser.role_title || "", section: scopedUser.section, assignedRoles:scopedUser.assignedRoles } : null;
   const bootstrap = `<script>window.__DIPVTC_STATE__=${safeJsonForScript(state)};window.__DIPVTC_USER__=${safeJsonForScript(userPayload)};</script><script src="/server-storage.js"></script>`;
   html = html.replace(/\blocalStorage\b/g, "window.dipvtcStore").replace(/<script\b/i, `${bootstrap}<script`);
-  const branding = await stateSnapshot(BRANDING_STATE_KEYS);
-  const favicon = safeBrandingAsset(branding.dipvtc_site_favicon_url, "https://www.dipvtc.com/assets/images/dipvtc-favicon.svg");
+  const brandingResult = await pool.query("SELECT state_key,value,updated_at FROM site_state WHERE state_key=ANY($1::text[])", [BRANDING_STATE_KEYS]);
+  const branding = Object.fromEntries(brandingResult.rows.map(row => [row.state_key, row]));
+  const favicon = safeBrandingAsset(branding.dipvtc_site_favicon_url?.value, "https://www.dipvtc.com/assets/images/dipvtc-favicon.svg", branding.dipvtc_site_favicon_url?.updated_at);
   const iconLinks = `<link rel="icon" type="image/svg+xml" href="${htmlAttribute(favicon)}"><link rel="apple-touch-icon" href="/assets/images/dipvtc-pwa-192.png">`;
   html = html.replace(/<link\b[^>]*\brel=["'](?:icon|shortcut icon|apple-touch-icon)["'][^>]*>/gi, "");
   if (fileName === "index.html") {
-    const shareImage = safeBrandingAsset(branding.dipvtc_site_share_image, "https://www.dipvtc.com/assets/images/dipvtc-share-preview.png");
+    const shareImage = safeBrandingAsset(branding.dipvtc_site_share_image?.value, "https://www.dipvtc.com/assets/images/dipvtc-share-preview.png", branding.dipvtc_site_share_image?.updated_at);
     const meta = `<meta name="description" content="Double Impact Private College — The Empire of Excellence. Discover our schools, courses and admissions."><meta property="og:type" content="website"><meta property="og:site_name" content="Double Impact Private College"><meta property="og:title" content="DIPVTC — The Empire of Excellence"><meta property="og:description" content="Discover Double Impact Private College, our schools, courses and admissions."><meta property="og:url" content="https://www.dipvtc.com/"><meta property="og:image" content="${htmlAttribute(shareImage)}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="DIPVTC — The Empire of Excellence"><meta name="twitter:description" content="Discover Double Impact Private College, our schools, courses and admissions."><meta name="twitter:image" content="${htmlAttribute(shareImage)}">`;
     html = html.replace(/<\/head>/i, `${iconLinks}${meta}</head>`);
   } else {
@@ -344,7 +357,7 @@ async function renderHtml(fileName, user, res) {
     if (installHead) html = html.replace(/<\/head>/i, `${installHead}</head>`);
     if (!/\bsrc=["']\/pwa-install\.js["']/i.test(html)) html = html.replace(/<\/body>/i, '<script src="/pwa-install.js" defer></script></body>');
   }
-  if (user) res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Cache-Control", "no-store");
   res.type("html").send(html);
 }
 app.get("/api/health", async (_req, res) => {
