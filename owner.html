@@ -35,7 +35,7 @@
 <label style="font-size:11px;font-weight:900">Phones</label><input id="sitePhones" class="input">
 <label style="font-size:11px;font-weight:900">Address</label><input id="siteAddress" class="input">
 <label style="font-size:11px;font-weight:900">Footer</label><input id="siteFooter" class="input">
-<h4 style="margin:18px 0 4px;color:#0a1931">School Social Platforms</h4><small style="display:block;color:#64748b;margin-bottom:8px">Paste each official public profile, channel or page link. Leave unused platforms blank.</small>
+<h4 style="margin:18px 0 4px;color:#0a1931">Branding and Link Previews</h4><small style="display:block;color:#64748b;margin-bottom:8px">Use an HTTPS image link or a public file under /assets/. Leave blank to use the school defaults.</small><label style="font-size:11px;font-weight:900">Share Preview Image URL</label><input id="siteShareImage" class="input" type="text" inputmode="url" placeholder="https://... or /assets/images/..." /><label style="font-size:11px;font-weight:900">Browser Icon (Favicon) URL</label><input id="siteFaviconUrl" class="input" type="text" inputmode="url" placeholder="https://... or /assets/images/..." /><h4 style="margin:18px 0 4px;color:#0a1931">School Social Platforms</h4><small style="display:block;color:#64748b;margin-bottom:8px">Paste each official public profile, channel or page link. Leave unused platforms blank.</small>
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0 12px">
 <label style="font-size:11px;font-weight:900">Facebook Page</label><input id="siteFacebook" class="input" placeholder="https://facebook.com/your-school">
 <label style="font-size:11px;font-weight:900">WhatsApp</label><input id="siteWhatsapp" class="input" placeholder="Phone number or https://wa.me/...">
@@ -198,6 +198,8 @@ document.getElementById('siteEmail').value=localStorage.getItem('dipvtc_site_ema
 document.getElementById('sitePhones').value=localStorage.getItem('dipvtc_site_phones')||'';
 document.getElementById('siteAddress').value=localStorage.getItem('dipvtc_site_address')||'';
 document.getElementById('siteFooter').value=localStorage.getItem('dipvtc_site_footer')||'';
+document.getElementById('siteShareImage').value=localStorage.getItem('dipvtc_site_share_image')||'';
+document.getElementById('siteFaviconUrl').value=localStorage.getItem('dipvtc_site_favicon_url')||'';
 document.getElementById('siteFacebook').value=localStorage.getItem('dipvtc_site_facebook')||'';
 document.getElementById('siteWhatsapp').value=localStorage.getItem('dipvtc_site_whatsapp')||'';
 document.getElementById('siteInstagram').value=localStorage.getItem('dipvtc_site_instagram')||'';
@@ -228,6 +230,8 @@ localStorage.setItem('dipvtc_site_email',document.getElementById('siteEmail').va
 localStorage.setItem('dipvtc_site_phones',document.getElementById('sitePhones').value);
 localStorage.setItem('dipvtc_site_address',document.getElementById('siteAddress').value);
 localStorage.setItem('dipvtc_site_footer',document.getElementById('siteFooter').value);
+localStorage.setItem('dipvtc_site_share_image',document.getElementById('siteShareImage').value.trim());
+localStorage.setItem('dipvtc_site_favicon_url',document.getElementById('siteFaviconUrl').value.trim());
 localStorage.setItem('dipvtc_site_facebook',document.getElementById('siteFacebook').value);
 localStorage.setItem('dipvtc_site_whatsapp',document.getElementById('siteWhatsapp').value);
 localStorage.setItem('dipvtc_site_instagram',document.getElementById('siteInstagram').value);

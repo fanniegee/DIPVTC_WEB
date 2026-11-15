@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">DIPVTC school crest</title>
+  <path d="M32 3 56 12v18c0 15-9.8 25.5-24 31C17.8 55.5 8 45 8 30V12L32 3Z" fill="#0a1931" stroke="#e98228" stroke-width="2.5"/>
+  <path d="M32 10 50 17v13c0 11.7-7.1 20.5-18 25.2C21.1 50.5 14 41.7 14 30V17l18-7Z" fill="#fff5e9"/>
+  <path d="M18 21h12c6.5 0 10.5 4.1 10.5 10.8S36.5 43 30 43H18V21Zm7 6v10h4.7c2.6 0 4-1.7 4-5.1s-1.4-4.9-4-4.9H25Z" fill="#0a1931"/>
+  <path d="M41 22h6v21h-6z" fill="#e98228"/>
+  <path d="M20 47h24" stroke="#e98228" stroke-width="2" stroke-linecap="round"/>
+</svg>

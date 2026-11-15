@@ -36,11 +36,11 @@ const OWNER_KEYS = new Set([
   "dipvtc_site_address", "dipvtc_site_coursesTitle", "dipvtc_site_email", "dipvtc_site_facebook",
   "dipvtc_site_instagram", "dipvtc_site_tiktok", "dipvtc_site_youtube", "dipvtc_site_x", "dipvtc_site_linkedin",
   "dipvtc_site_telegram", "dipvtc_site_threads", "dipvtc_site_pinterest",
-  "dipvtc_site_footer", "dipvtc_site_hero", "dipvtc_site_herosub", "dipvtc_site_motto",
+  "dipvtc_site_footer", "dipvtc_site_hero", "dipvtc_site_herosub", "dipvtc_site_motto", "dipvtc_site_share_image", "dipvtc_site_favicon_url",
   "dipvtc_site_whatsapp", "dipvtc_site_phones", "dipvtc_students", "dipvtc_subjects_image_boxes",
   "dipvtc_tasks", "dipvtc_team", "dipvtc_welcome_text", "dipvtc_welcome_title"
 ]);
-const ADMIN_KEYS = new Set(["dipvtc_courses", "dipvtc_students", "dipvtc_enquiries", "dipvtc_applications", "dipvtc_fees", "dipvtc_school_price_rules", "dipvtc_admission_sec_text", "dipvtc_admission_sec_title", "dipvtc_admission_text", "dipvtc_news_text", "dipvtc_news_title", "dipvtc_programs_title", "dipvtc_site_about", "dipvtc_site_aboutTitle", "dipvtc_site_address", "dipvtc_site_coursesTitle", "dipvtc_site_email", "dipvtc_site_facebook", "dipvtc_site_footer", "dipvtc_site_hero", "dipvtc_site_herosub", "dipvtc_site_instagram", "dipvtc_site_linkedin", "dipvtc_site_motto", "dipvtc_site_pinterest", "dipvtc_site_phones", "dipvtc_site_telegram", "dipvtc_site_threads", "dipvtc_site_tiktok", "dipvtc_site_whatsapp", "dipvtc_site_x", "dipvtc_site_youtube", "dipvtc_welcome_text", "dipvtc_welcome_title"]);
+const ADMIN_KEYS = new Set(["dipvtc_courses", "dipvtc_students", "dipvtc_enquiries", "dipvtc_applications", "dipvtc_fees", "dipvtc_school_price_rules", "dipvtc_admission_sec_text", "dipvtc_admission_sec_title", "dipvtc_admission_text", "dipvtc_news_text", "dipvtc_news_title", "dipvtc_programs_title", "dipvtc_site_about", "dipvtc_site_aboutTitle", "dipvtc_site_address", "dipvtc_site_coursesTitle", "dipvtc_site_email", "dipvtc_site_facebook", "dipvtc_site_share_image", "dipvtc_site_favicon_url", "dipvtc_site_footer", "dipvtc_site_hero", "dipvtc_site_herosub", "dipvtc_site_instagram", "dipvtc_site_linkedin", "dipvtc_site_motto", "dipvtc_site_pinterest", "dipvtc_site_phones", "dipvtc_site_telegram", "dipvtc_site_threads", "dipvtc_site_tiktok", "dipvtc_site_whatsapp", "dipvtc_site_x", "dipvtc_site_youtube", "dipvtc_welcome_text", "dipvtc_welcome_title"]);
 const STAFF_ROLE_CODES = ["principal", "teacher", "admissions", "finance", "content", "front_desk", "driver", "staff"];
 const ADMISSION_SCHOOLS = [
   { code: "cambridge", name: "Cambridge", classes: [
@@ -56,7 +56,7 @@ const ADMISSION_SCHOOLS = [
 ];
 const ZIMSEC_PRIMARY_SUBJECTS = ["English Language", "Shona Mutauro", "Social Sciences", "Science and Technology", "Mathematics", "Physical Education and Arts"];
 const ZIMSEC_CLASS_PREFIX = "zimsec · ";
-const CONTENT_WRITE_KEYS = new Set(["dipvtc_admission_sec_text", "dipvtc_admission_sec_title", "dipvtc_admission_text", "dipvtc_news_text", "dipvtc_news_title", "dipvtc_programs_title", "dipvtc_site_about", "dipvtc_site_aboutTitle", "dipvtc_site_address", "dipvtc_site_coursesTitle", "dipvtc_site_email", "dipvtc_site_facebook", "dipvtc_site_footer", "dipvtc_site_hero", "dipvtc_site_herosub", "dipvtc_site_instagram", "dipvtc_site_linkedin", "dipvtc_site_motto", "dipvtc_site_pinterest", "dipvtc_site_phones", "dipvtc_site_telegram", "dipvtc_site_threads", "dipvtc_site_tiktok", "dipvtc_site_whatsapp", "dipvtc_site_x", "dipvtc_site_youtube", "dipvtc_welcome_text", "dipvtc_welcome_title"]);
+const CONTENT_WRITE_KEYS = new Set(["dipvtc_admission_sec_text", "dipvtc_admission_sec_title", "dipvtc_admission_text", "dipvtc_news_text", "dipvtc_news_title", "dipvtc_programs_title", "dipvtc_site_about", "dipvtc_site_aboutTitle", "dipvtc_site_address", "dipvtc_site_coursesTitle", "dipvtc_site_email", "dipvtc_site_facebook", "dipvtc_site_share_image", "dipvtc_site_favicon_url", "dipvtc_site_footer", "dipvtc_site_hero", "dipvtc_site_herosub", "dipvtc_site_instagram", "dipvtc_site_linkedin", "dipvtc_site_motto", "dipvtc_site_pinterest", "dipvtc_site_phones", "dipvtc_site_telegram", "dipvtc_site_threads", "dipvtc_site_tiktok", "dipvtc_site_whatsapp", "dipvtc_site_x", "dipvtc_site_youtube", "dipvtc_welcome_text", "dipvtc_welcome_title"]);
 const STAFF_KEYS_BY_ROLE = {
   principal: new Set(["dipvtc_courses", "dipvtc_students", "dipvtc_pupils", "dipvtc_tasks"]),
   teacher: new Set(["dipvtc_courses", "dipvtc_students", "dipvtc_tasks", "dipvtc_course_teachers", "dipvtc_online_timetable", "dipvtc_calendar", "dipvtc_marking_engine_v1"]),
@@ -84,7 +84,7 @@ const PUBLIC_KEYS = new Set([
   "dipvtc_contacts_v2", "dipvtc_site_facebook", "dipvtc_site_whatsapp", "dipvtc_site_instagram",
   "dipvtc_site_tiktok", "dipvtc_site_youtube", "dipvtc_site_x", "dipvtc_site_linkedin",
   "dipvtc_site_telegram", "dipvtc_site_threads", "dipvtc_site_pinterest",
-  "dipvtc_site_about", "dipvtc_site_aboutTitle", "dipvtc_programs_schools", "dipvtc_programs_title", "dipvtc_courses", "dipvtc_subjects_image_boxes",
+  "dipvtc_site_about", "dipvtc_site_aboutTitle", "dipvtc_site_share_image", "dipvtc_site_favicon_url", "dipvtc_programs_schools", "dipvtc_programs_title", "dipvtc_courses", "dipvtc_subjects_image_boxes",
   "dipvtc_pathways_v2"
 ]);
 const FINANCE_STORAGE_KEYS = new Set(["di_students", "di_payments", "di_expenses", "di_fees", "di_school"]);
@@ -287,6 +287,16 @@ function stateWithIdentity(snapshot, user) {
   }
   return state;
 }
+const BRANDING_STATE_KEYS = ["dipvtc_site_share_image", "dipvtc_site_favicon_url"];
+function safeBrandingAsset(value, fallback) {
+  const raw = String(decodeStoredState(value, "") || "").trim();
+  if (/^https:\/\/[^\s"'<>]+$/i.test(raw)) return raw;
+  if (/^\/assets\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]+$/.test(raw)) return `https://www.dipvtc.com${raw}`;
+  return fallback;
+}
+function htmlAttribute(value) {
+  return String(value).replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
+}
 async function renderHtml(fileName, user, res) {
   const filePath = path.join(publicRoot, fileName);
   let html = await fs.readFile(filePath, "utf8");
@@ -297,10 +307,20 @@ async function renderHtml(fileName, user, res) {
   const userPayload = scopedUser ? { id: scopedUser.id, name: scopedUser.display_name, email: scopedUser.email, role: scopedUser.role, roleTitle: scopedUser.role_title || "", section: scopedUser.section, assignedRoles:scopedUser.assignedRoles } : null;
   const bootstrap = `<script>window.__DIPVTC_STATE__=${safeJsonForScript(state)};window.__DIPVTC_USER__=${safeJsonForScript(userPayload)};</script><script src="/server-storage.js"></script>`;
   html = html.replace(/\blocalStorage\b/g, "window.dipvtcStore").replace(/<script\b/i, `${bootstrap}<script`);
+  const branding = await stateSnapshot(BRANDING_STATE_KEYS);
+  const favicon = safeBrandingAsset(branding.dipvtc_site_favicon_url, "https://www.dipvtc.com/assets/images/dipvtc-favicon.svg");
+  const iconLinks = `<link rel="icon" type="image/svg+xml" href="${htmlAttribute(favicon)}"><link rel="apple-touch-icon" href="${htmlAttribute(favicon)}">`;
+  html = html.replace(/<link\b[^>]*\brel=["'](?:icon|shortcut icon|apple-touch-icon)["'][^>]*>/gi, "");
+  if (fileName === "index.html") {
+    const shareImage = safeBrandingAsset(branding.dipvtc_site_share_image, "https://www.dipvtc.com/assets/images/dipvtc-share-preview.png");
+    const meta = `<meta name="description" content="Double Impact Private College — The Empire of Excellence. Discover our schools, courses and admissions."><meta property="og:type" content="website"><meta property="og:site_name" content="Double Impact Private College"><meta property="og:title" content="DIPVTC — The Empire of Excellence"><meta property="og:description" content="Discover Double Impact Private College, our schools, courses and admissions."><meta property="og:url" content="https://www.dipvtc.com/"><meta property="og:image" content="${htmlAttribute(shareImage)}"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="DIPVTC — The Empire of Excellence"><meta name="twitter:description" content="Discover Double Impact Private College, our schools, courses and admissions."><meta name="twitter:image" content="${htmlAttribute(shareImage)}">`;
+    html = html.replace(/<\/head>/i, `${iconLinks}${meta}</head>`);
+  } else {
+    html = html.replace(/<\/head>/i, `${iconLinks}</head>`);
+  }
   if (user) res.setHeader("Cache-Control", "no-store");
   res.type("html").send(html);
 }
-
 app.get("/api/health", async (_req, res) => {
   try { await pool.query("SELECT 1"); res.json({ ok: true, service: "DIPVTC Main Website and Marking Engine", database: "connected" }); }
   catch { res.status(503).json({ ok: false, database: "unavailable" }); }
