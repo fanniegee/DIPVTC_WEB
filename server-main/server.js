@@ -137,6 +137,27 @@ async function passwordMatches(password, stored) {
   const expected = Buffer.from(hashHex, "hex");
   return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
 }
+function owner2faKey() {
+  const value=String(process.env.OWNER_2FA_ENCRYPTION_KEY||"").trim();
+  if(!/^[a-f0-9]{64}$/i.test(value))throw Object.assign(new Error("Owner two-step sign-in is not configured on the server. Set OWNER_2FA_ENCRYPTION_KEY before enabling it."),{status:503});
+  return Buffer.from(value,"hex");
+}
+function encryptOwner2faSecret(secret) {
+  const iv=crypto.randomBytes(12),cipher=crypto.createCipheriv("aes-256-gcm",owner2faKey(),iv),body=Buffer.concat([cipher.update(secret,"utf8"),cipher.final()]);
+  return [iv.toString("base64url"),cipher.getAuthTag().toString("base64url"),body.toString("base64url")].join(".");
+}
+function decryptOwner2faSecret(value) {
+  const [iv,tag,body]=String(value||"").split(".");if(!iv||!tag||!body)throw new Error("Owner two-step sign-in data is invalid.");
+  const decipher=crypto.createDecipheriv("aes-256-gcm",owner2faKey(),Buffer.from(iv,"base64url"));decipher.setAuthTag(Buffer.from(tag,"base64url"));return Buffer.concat([decipher.update(Buffer.from(body,"base64url")),decipher.final()]).toString("utf8");
+}
+const TOTP_BASE32="ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+function randomTotpSecret(){const bytes=crypto.randomBytes(20);let bits="";for(const byte of bytes)bits+=byte.toString(2).padStart(8,"0");let result="";for(let i=0;i<bits.length;i+=5)result+=TOTP_BASE32[parseInt(bits.slice(i,i+5).padEnd(5,"0"),2)];return result;}
+function base32Bytes(value){let bits="";for(const character of String(value||"").replace(/=+$/g,"").toUpperCase()){const digit=TOTP_BASE32.indexOf(character);if(digit<0)throw new Error("Authenticator secret is invalid.");bits+=digit.toString(2).padStart(5,"0");}const bytes=[];for(let i=0;i+8<=bits.length;i+=8)bytes.push(parseInt(bits.slice(i,i+8),2));return Buffer.from(bytes);}
+function totpCode(secret,time=Date.now(),offset=0){const step=Math.floor(time/30000)+offset,counter=Buffer.alloc(8);counter.writeBigUInt64BE(BigInt(step));const digest=crypto.createHmac("sha1",base32Bytes(secret)).update(counter).digest(),index=digest[digest.length-1]&15,number=(digest.readUInt32BE(index)&0x7fffffff)%1_000_000;return String(number).padStart(6,"0");}
+function totpMatches(secret,value){const code=String(value||"").replace(/\s/g,"");if(!/^\d{6}$/.test(code))return false;const supplied=Buffer.from(code);for(const offset of [-1,0,1]){const expected=Buffer.from(totpCode(secret,Date.now(),offset));if(crypto.timingSafeEqual(supplied,expected))return true;}return false;}
+function newRecoveryCodes(){return Array.from({length:10},()=>{const value=crypto.randomBytes(5).toString("hex").toUpperCase();return value.slice(0,5)+"-"+value.slice(5);});}
+function recoveryCodeHash(value){return crypto.createHash("sha256").update(String(value||"").replace(/[^a-f0-9]/gi,"").toUpperCase()).digest("hex");}
+function recoveryCodeIndex(value,hashes){const supplied=Buffer.from(recoveryCodeHash(value));return (Array.isArray(hashes)?hashes:[]).findIndex(hash=>{const expected=Buffer.from(String(hash||""));return supplied.length===expected.length&&crypto.timingSafeEqual(supplied,expected);});}
 function validPassword(value) { return typeof value === "string" && value.length >= 10 && value.length <= 256; }
 const HEALTH_CONDITIONS = new Set(["HIV/AIDS","Cancer","Diabetes","Asthma","Epilepsy / seizures","Sickle cell disease","Heart condition","High blood pressure","Kidney condition","Anaemia","Tuberculosis (TB)","Chronic skin condition","Mental health condition","Physical disability","Vision condition","Hearing condition"]);
 const CHILD_ALLERGIES = new Set(["Peanuts","Tree nuts","Milk / dairy","Eggs","Fish","Shellfish","Wheat / gluten","Soy","Penicillin / antibiotics","Other medicines","Pollen","Dust mites","Mould","Insect stings","Latex","Animal dander"]);
@@ -210,7 +231,7 @@ async function authenticate(req, res, next) {
 app.use((req, res, next) => {
   const needsSession = req.path === "/owner.html" || req.path === "/admin.html" || req.path === "/project-assistant.html" || req.path === "/staff.html" || req.path === "/site-content.html" || req.path === "/fees.html" || req.path === "/fees.htm" || req.path === "/assets/fees.html" || req.path.startsWith("/exam-mark-entry") ||
     req.path === "/registrations.html" || req.path === "/learning.html" || req.path === "/parent-portal.html" || req.path === "/student-portal.html" || req.path === "/payment-review.html" ||
-    req.path.startsWith("/api/state") || req.path === "/api/auth/password" || req.path.startsWith("/api/team/invites") || req.path.startsWith("/api/staff/") ||
+    req.path.startsWith("/api/state") || req.path === "/api/auth/password" || req.path.startsWith("/api/team/invites") || req.path.startsWith("/api/staff/") || req.path.startsWith("/api/owner/") ||
     req.path.startsWith("/api/admissions/") || req.path.startsWith("/api/portal/") || req.path.startsWith("/api/admin/");
   if (!needsSession) return next();
   authenticate(req, res, next);
@@ -356,6 +377,10 @@ app.post("/api/auth/login", async (req, res, next) => {
     if (portal === "/payment-review.html" && !["owner","admin","finance"].includes(user.role)) return res.status(403).json({ error: "Payment approvals are available to Owner, Main Admin and Finance accounts." });
     if (portal === "/parent-portal.html" && user.role !== "parent") return res.status(403).json({ error: "Use the Parent Portal sign-in for a Parent account." });
     if (portal === "/student-portal.html" && user.role !== "student") return res.status(403).json({ error: "Use the Student Portal sign-in for a Student account." });
+    if (user.role === "owner") {
+      let factor;try{factor=await pool.query("SELECT enabled FROM owner_two_factor WHERE user_id=$1",[user.id]);}catch(error){if(error.code!=="42P01")throw error;factor={rows:[]};}
+      if(factor.rows[0]?.enabled){owner2faKey();const challengeToken=crypto.randomBytes(32).toString("base64url"),challengeHash=crypto.createHash("sha256").update(challengeToken).digest("hex");await pool.query("DELETE FROM owner_two_factor_challenges WHERE user_id=$1 OR expires_at<NOW()",[user.id]);await pool.query("INSERT INTO owner_two_factor_challenges(user_id,token_hash,expires_at) VALUES($1,$2,NOW()+INTERVAL '5 minutes')",[user.id,challengeHash]);await pool.query("INSERT INTO app_audit_log(user_id,action) VALUES($1,'owner-2fa-challenge')",[user.id]);res.setHeader("Cache-Control","no-store");return res.json({requiresTwoFactor:true,challengeToken});}
+    }
     const token = crypto.randomBytes(32).toString("base64url");
     const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
     await pool.query("INSERT INTO app_sessions(user_id,token_hash,expires_at) VALUES($1,$2,NOW()+INTERVAL '8 hours')", [user.id, tokenHash]);
@@ -364,6 +389,30 @@ app.post("/api/auth/login", async (req, res, next) => {
     const destination = user.role === "parent" ? "/parent-portal.html" : user.role === "student" ? "/student-portal.html" : null;
     res.json({ destination, user: { id: user.id, email: user.email, name: user.display_name, role: user.role, roleTitle: user.role_title || "", section: user.section } });
   } catch (error) { next(error); }
+});
+
+app.post("/api/auth/login/verify-2fa",async(req,res,next)=>{
+  const challengeToken=String(req.body?.challengeToken||""),code=String(req.body?.code||"").trim();
+  if(!challengeToken||challengeToken.length>100||!code)return res.status(400).json({error:"Enter your authenticator or recovery code."});
+  const challengeHash=crypto.createHash("sha256").update(challengeToken).digest("hex"),client=await pool.connect();
+  try{
+    await client.query("BEGIN");
+    const result=await client.query(`SELECT c.user_id,c.attempts,u.email,u.display_name,u.role,u.role_title,u.section,f.secret_ciphertext,f.recovery_code_hashes
+      FROM owner_two_factor_challenges c JOIN app_users u ON u.id=c.user_id JOIN owner_two_factor f ON f.user_id=u.id
+      WHERE c.token_hash=$1 AND c.expires_at>NOW() AND f.enabled=TRUE AND u.active=TRUE FOR UPDATE OF c`,[challengeHash]);
+    const row=result.rows[0];if(!row){await client.query("ROLLBACK");return res.status(401).json({error:"That verification request expired. Sign in again."});}
+    const secret=decryptOwner2faSecret(row.secret_ciphertext);let verified=totpMatches(secret,code),recoveryIndex=-1;
+    if(!verified){recoveryIndex=recoveryCodeIndex(code,row.recovery_code_hashes);verified=recoveryIndex>=0;}
+    if(!verified){const attempts=Number(row.attempts||0)+1;if(attempts>=5)await client.query("DELETE FROM owner_two_factor_challenges WHERE token_hash=$1",[challengeHash]);else await client.query("UPDATE owner_two_factor_challenges SET attempts=$2 WHERE token_hash=$1",[challengeHash,attempts]);await client.query("COMMIT");return res.status(401).json({error:attempts>=5?"Too many incorrect codes. Sign in again to request a new code.":"The code is incorrect. Check your authenticator and try again."});}
+    if(recoveryIndex>=0){const hashes=Array.isArray(row.recovery_code_hashes)?row.recovery_code_hashes:[];hashes.splice(recoveryIndex,1);await client.query("UPDATE owner_two_factor SET recovery_code_hashes=$2::jsonb,updated_at=NOW() WHERE user_id=$1",[row.user_id,JSON.stringify(hashes)]);}
+    const token=crypto.randomBytes(32).toString("base64url"),tokenHash=crypto.createHash("sha256").update(token).digest("hex");
+    await client.query("DELETE FROM owner_two_factor_challenges WHERE token_hash=$1",[challengeHash]);
+    await client.query("INSERT INTO app_sessions(user_id,token_hash,expires_at) VALUES($1,$2,NOW()+INTERVAL '8 hours')",[row.user_id,tokenHash]);
+    await client.query("INSERT INTO app_audit_log(user_id,action,target_key) VALUES($1,$2,$3)",[row.user_id,recoveryIndex>=0?"owner-sign-in-recovery-code":"owner-sign-in-two-factor",recoveryIndex>=0?"one-time recovery code used":"authenticator code"]);
+    await client.query("COMMIT");setSessionCookie(res,token);res.setHeader("Cache-Control","no-store");
+    const destination=row.role==="parent"?"/parent-portal.html":row.role==="student"?"/student-portal.html":null;
+    res.json({destination,user:{id:row.user_id,email:row.email,name:row.display_name,role:row.role,roleTitle:row.role_title||"",section:row.section}});
+  }catch(error){await client.query("ROLLBACK").catch(()=>{});next(error);}finally{client.release();}
 });
 
 // Parent and student accounts are provisioned by Admissions/Admin and bound to specific learners.
@@ -677,6 +726,11 @@ app.post("/api/auth/password", requireRole("owner"), async (req, res, next) => {
     res.json({ ok: true });
   } catch (error) { next(error); }
 });
+app.get("/api/owner/two-factor",requireRole("owner"),async(req,res,next)=>{try{const result=await pool.query("SELECT enabled,pending_secret_ciphertext,recovery_code_hashes FROM owner_two_factor WHERE user_id=$1",[req.user.id]),row=result.rows[0];res.setHeader("Cache-Control","no-store");res.json({migrationReady:true,enabled:!!row?.enabled,setupPending:!!row?.pending_secret_ciphertext,recoveryCodesRemaining:Array.isArray(row?.recovery_code_hashes)?row.recovery_code_hashes.length:0,serverConfigured:/^[a-f0-9]{64}$/i.test(String(process.env.OWNER_2FA_ENCRYPTION_KEY||""))});}catch(error){if(error.code==="42P01"){res.setHeader("Cache-Control","no-store");return res.json({migrationReady:false,enabled:false,serverConfigured:/^[a-f0-9]{64}$/i.test(String(process.env.OWNER_2FA_ENCRYPTION_KEY||""))});}next(error);}});
+app.post("/api/owner/two-factor/setup",requireRole("owner"),async(req,res,next)=>{try{const account=await pool.query("SELECT password_hash FROM app_users WHERE id=$1",[req.user.id]);if(!await passwordMatches(String(req.body?.currentPassword||""),account.rows[0]?.password_hash))return res.status(401).json({error:"Current Owner password is incorrect."});const secret=randomTotpSecret(),encrypted=encryptOwner2faSecret(secret),issuer="DIPVTC",label=`${issuer}:${req.user.email}`,uri=`otpauth://totp/${encodeURIComponent(label)}?secret=${secret}&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=6&period=30`;await pool.query(`INSERT INTO owner_two_factor(user_id,enabled,pending_secret_ciphertext,updated_at) VALUES($1,FALSE,$2,NOW()) ON CONFLICT(user_id) DO UPDATE SET pending_secret_ciphertext=EXCLUDED.pending_secret_ciphertext,updated_at=NOW()`,[req.user.id,encrypted]);await pool.query("INSERT INTO app_audit_log(user_id,action,target_key) VALUES($1,'owner-2fa-setup-started',$2)",[req.user.id,req.user.email]);res.setHeader("Cache-Control","no-store");res.json({secret,account:req.user.email,issuer,otpauthUri:uri});}catch(error){next(error);}});
+app.post("/api/owner/two-factor/confirm",requireRole("owner"),async(req,res,next)=>{try{const result=await pool.query("SELECT pending_secret_ciphertext FROM owner_two_factor WHERE user_id=$1",[req.user.id]),encrypted=result.rows[0]?.pending_secret_ciphertext;if(!encrypted)return res.status(409).json({error:"Start the authenticator setup before confirming it."});const secret=decryptOwner2faSecret(encrypted);if(!totpMatches(secret,req.body?.code))return res.status(400).json({error:"That authenticator code is not valid yet. Check your device time and try the current 6-digit code."});const recoveryCodes=newRecoveryCodes();await pool.query("UPDATE owner_two_factor SET enabled=TRUE,secret_ciphertext=pending_secret_ciphertext,pending_secret_ciphertext=NULL,recovery_code_hashes=$2::jsonb,updated_at=NOW() WHERE user_id=$1",[req.user.id,JSON.stringify(recoveryCodes.map(recoveryCodeHash))]);await pool.query("INSERT INTO app_audit_log(user_id,action) VALUES($1,'owner-2fa-enabled')",[req.user.id]);res.setHeader("Cache-Control","no-store");res.json({enabled:true,recoveryCodes});}catch(error){next(error);}});
+app.post("/api/owner/two-factor/disable",requireRole("owner"),async(req,res,next)=>{const client=await pool.connect();try{await client.query("BEGIN");const account=await client.query("SELECT password_hash FROM app_users WHERE id=$1",[req.user.id]);if(!await passwordMatches(String(req.body?.currentPassword||""),account.rows[0]?.password_hash)){await client.query("ROLLBACK");return res.status(401).json({error:"Current Owner password is incorrect."});}const result=await client.query("SELECT enabled,secret_ciphertext,recovery_code_hashes FROM owner_two_factor WHERE user_id=$1 FOR UPDATE",[req.user.id]),row=result.rows[0];if(!row?.enabled){await client.query("ROLLBACK");return res.status(409).json({error:"Two-step sign-in is not enabled."});}const code=String(req.body?.code||"").trim(),secret=decryptOwner2faSecret(row.secret_ciphertext);if(!totpMatches(secret,code)&&recoveryCodeIndex(code,row.recovery_code_hashes)<0){await client.query("ROLLBACK");return res.status(401).json({error:"Enter a current authenticator code or unused recovery code to turn off two-step sign-in."});}await client.query("UPDATE owner_two_factor SET enabled=FALSE,secret_ciphertext=NULL,pending_secret_ciphertext=NULL,recovery_code_hashes='[]'::jsonb,updated_at=NOW() WHERE user_id=$1",[req.user.id]);await client.query("INSERT INTO app_audit_log(user_id,action) VALUES($1,'owner-2fa-disabled')",[req.user.id]);await client.query("COMMIT");res.json({enabled:false});}catch(error){await client.query("ROLLBACK").catch(()=>{});next(error);}finally{client.release();}});
+app.post("/api/owner/two-factor/recovery-codes",requireRole("owner"),async(req,res,next)=>{const client=await pool.connect();try{await client.query("BEGIN");const account=await client.query("SELECT password_hash FROM app_users WHERE id=$1",[req.user.id]);if(!await passwordMatches(String(req.body?.currentPassword||""),account.rows[0]?.password_hash)){await client.query("ROLLBACK");return res.status(401).json({error:"Current Owner password is incorrect."});}const result=await client.query("SELECT enabled,secret_ciphertext,recovery_code_hashes FROM owner_two_factor WHERE user_id=$1 FOR UPDATE",[req.user.id]),row=result.rows[0];if(!row?.enabled){await client.query("ROLLBACK");return res.status(409).json({error:"Enable two-step sign-in before creating recovery codes."});}const code=String(req.body?.code||"").trim(),secret=decryptOwner2faSecret(row.secret_ciphertext);if(!totpMatches(secret,code)&&recoveryCodeIndex(code,row.recovery_code_hashes)<0){await client.query("ROLLBACK");return res.status(401).json({error:"Enter a current authenticator code or unused recovery code to replace the recovery codes."});}const recoveryCodes=newRecoveryCodes();await client.query("UPDATE owner_two_factor SET recovery_code_hashes=$2::jsonb,updated_at=NOW() WHERE user_id=$1",[req.user.id,JSON.stringify(recoveryCodes.map(recoveryCodeHash))]);await client.query("INSERT INTO app_audit_log(user_id,action) VALUES($1,'owner-2fa-recovery-codes-regenerated')",[req.user.id]);await client.query("COMMIT");res.setHeader("Cache-Control","no-store");res.json({recoveryCodes});}catch(error){await client.query("ROLLBACK").catch(()=>{});next(error);}finally{client.release();}});
 
 app.get("/api/state", requireRole("owner", "admin", ...STAFF_ROLE_CODES), async (req, res, next) => {
   try { const scopedUser={...req.user,assignedRoles:await assignedRoleNamesForUser(req.user)};res.setHeader("Cache-Control", "no-store"); res.json({ state: stateWithIdentity(filterStaffState(await stateSnapshot(await keysForUser(scopedUser)), scopedUser), scopedUser), user: scopedUser }); }

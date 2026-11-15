@@ -1,7 +1,10 @@
-const CACHE_NAME = "dipvtc-family-pwa-v2";
+const CACHE_NAME = "dipvtc-family-pwa-v3";
 const APP_SHELL = [
   "/offline.html",
   "/pwa-install.js",
+  "/manifest.webmanifest",
+  "/staff-app.webmanifest",
+  "/admin-app.webmanifest",
   "/assets/images/dipvtc-pwa-192.png",
   "/assets/images/dipvtc-pwa-512.png",
   "/assets/images/dipvtc-pwa-maskable-512.png",

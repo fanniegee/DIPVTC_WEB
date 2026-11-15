@@ -1,0 +1,19 @@
+{
+  "id": "/admin-app",
+  "name": "DIPVTC Admin and Owner",
+  "short_name": "DIPVTC Admin",
+  "description": "Quick sign-in access to the DIPVTC Admin and Owner dashboards.",
+  "start_url": "/login.html?next=%2Fadmin.html&source=admin-app",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "theme_color": "#0a1931",
+  "background_color": "#0a1931",
+  "categories": ["education", "business"],
+  "icons": [
+    { "src": "/assets/images/dipvtc-pwa-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/images/dipvtc-pwa-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/images/dipvtc-pwa-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

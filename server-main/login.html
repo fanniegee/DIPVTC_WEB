@@ -3,12 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0a1931">
+  <link id="managementManifest" rel="manifest" href="/manifest.webmanifest">
   <title>Sign in · DIPVTC</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
-    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f4f6f9;color:#172b49;font:400 15px Montserrat,Arial,sans-serif}.card{width:min(430px,92vw);background:#fff;padding:30px;border-radius:18px;box-shadow:0 18px 60px #102b5918}.brand{font-weight:900;color:#e67e22}.brand span{color:#0a1931}h1{font-size:25px;font-weight:800;margin:8px 0}p{color:#64748b;line-height:1.6}.field{display:block;margin:16px 0 6px;font-size:12px;font-weight:700}input{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:9px;font:inherit}.button{width:100%;margin-top:18px;padding:13px;background:#0a1931;color:#fff;border:0;border-radius:9px;font:700 14px Montserrat,Arial,sans-serif;cursor:pointer}.message{min-height:20px;color:#a12626;font-size:13px;margin-top:12px}a{color:#0a1931}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f4f6f9;color:#172b49;font:400 15px Montserrat,Arial,sans-serif}.card{width:min(430px,92vw);background:#fff;padding:30px;border-radius:18px;box-shadow:0 18px 60px #102b5918}.brand{font-weight:900;color:#e67e22}.brand span{color:#0a1931}h1{font-size:25px;font-weight:800;margin:8px 0}p{color:#64748b;line-height:1.6}.field{display:block;margin:16px 0 6px;font-size:12px;font-weight:700}input{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:9px;font:inherit}.button{width:100%;margin-top:18px;padding:13px;background:#0a1931;color:#fff;border:0;border-radius:9px;font:700 14px Montserrat,Arial,sans-serif;cursor:pointer}.message{min-height:20px;color:#a12626;font-size:13px;margin-top:12px}a{color:#0a1931}.install-cta{width:100%;padding:10px 12px;border:1px solid #ffbd82;border-radius:9px;background:#fff5eb;color:#0a1931;font:700 12px Montserrat,Arial,sans-serif;cursor:pointer}
   </style>
 </head>
 <body>
@@ -17,10 +19,21 @@
     <h1 id="loginTitle">Sign in</h1>
     <p id="loginHint">Use your school account. Passwords are checked on the server and are not saved in this browser.</p>
     <form id="login">
+      <div id="credentialsFields">
       <label class="field" for="email">EMAIL</label><input id="email" type="email" autocomplete="username" required>
       <label class="field" for="password">PASSWORD</label><input id="password" type="password" autocomplete="current-password" required>
-      <button class="button" type="submit">Sign in</button><div class="message" id="message" role="status"></div>
+      <button class="button" id="loginSubmit" type="submit">Sign in</button>
+      </div>
+      <div id="twoFactorStep" hidden>
+        <label class="field" for="twoFactorCode">AUTHENTICATOR OR RECOVERY CODE</label>
+        <input id="twoFactorCode" inputmode="numeric" autocomplete="one-time-code" maxlength="20" aria-describedby="twoFactorHelp">
+        <p id="twoFactorHelp">Enter the 6-digit code from your authenticator app, or one unused recovery code.</p>
+        <button class="button" type="submit">Verify and continue</button>
+        <button class="install-cta" id="backToPassword" type="button" style="margin-top:8px">Back to password</button>
+      </div>
+      <div class="message" id="message" role="status" aria-live="polite"></div>
     </form>
+    <button id="installAppButton" class="install-cta" type="button" hidden>Install management app</button><p id="installAppHelp" hidden></p>
     <p><a href="/password-help.html">Forgot your password?</a></p>
     <p><a href="/family-registration.html">New student? Apply and create your student account</a></p><p><a href="/portal-login.html">Parent and Student Portal sign in</a></p>
     <p><a href="/">Return to the school website</a></p>
@@ -31,6 +44,9 @@
     const next=["/staff.html","/admin.html","/owner.html","/payment-review.html","/exam-mark-entry/","/parent-portal.html","/student-portal.html"].includes(requested)?requested:"";
     const title=document.getElementById("loginTitle");
     const hint=document.getElementById("loginHint");
+    const managementManifest=document.getElementById("managementManifest");
+    if(next==="/staff.html")managementManifest.href="/staff-app.webmanifest";
+    else if(next==="/admin.html"||next==="/owner.html")managementManifest.href="/admin-app.webmanifest";
     if(next==="/staff.html"){
       title.textContent="Staff sign in";
       hint.textContent="Sign in with your activated staff account to open the shared Staff dashboard.";
@@ -51,21 +67,25 @@
     }else if(next==="/student-portal.html"){
       title.textContent="Student Portal sign in"; hint.textContent="Open your personal learning dashboard using the account issued by Admissions.";
     }
+    let twoFactorChallenge="";
     document.getElementById("login").addEventListener("submit",async event=>{
       event.preventDefault();
       const message=document.getElementById("message");
-      message.textContent="Signing in…";
+      message.textContent=twoFactorChallenge?"Verifying code…":"Signing in…";
       try{
-        const response=await fetch("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:document.getElementById("email").value,password:document.getElementById("password").value,portal:next})});
+        const response=twoFactorChallenge
+          ?await fetch("/api/auth/login/verify-2fa",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({challengeToken:twoFactorChallenge,code:document.getElementById("twoFactorCode").value})})
+          :await fetch("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:document.getElementById("email").value,password:document.getElementById("password").value,portal:next})});
         const data=await response.json();
         if(!response.ok)throw new Error(data.error||"Sign in failed.");
+        if(data.requiresTwoFactor){twoFactorChallenge=data.challengeToken;document.getElementById("credentialsFields").hidden=true;document.getElementById("twoFactorStep").hidden=false;document.getElementById("twoFactorCode").focus();message.textContent="Enter the current code from your authenticator app. You may also use one unused recovery code.";return;}
         const role=data.user.role;
         let destination;
         if(next==="/exam-mark-entry/"){
           if(role!=="teacher")throw new Error("Exam Mark-Entry is available to Teacher accounts.");
           destination="/exam-mark-entry/";
         }else if(next==="/staff.html"){
-          if(!["principal","teacher","admissions","finance","content","front_desk","staff"].includes(role))throw new Error("This is the Staff Login. Use Admin / Owner Login for management accounts.");
+          if(!["principal","teacher","admissions","finance","content","front_desk","driver","staff"].includes(role))throw new Error("This is the Staff Login. Use Admin / Owner Login for management accounts.");
           destination="/staff.html";
         }else if(next==="/admin.html"){
           if(role==="owner")destination="/owner.html";
@@ -86,6 +106,7 @@
         location.href=destination;
       }catch(error){message.textContent=error.message;}
     });
-  </script>
+    document.getElementById("backToPassword").addEventListener("click",()=>{twoFactorChallenge="";document.getElementById("credentialsFields").hidden=false;document.getElementById("twoFactorStep").hidden=true;document.getElementById("twoFactorCode").value="";document.getElementById("message").textContent="";});
+  </script><script src="/pwa-install.js"></script>
 </body>
 </html>

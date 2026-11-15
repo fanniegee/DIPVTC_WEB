@@ -9,8 +9,13 @@
 
   const installButton = document.getElementById("installAppButton");
   const installHelp = document.getElementById("installAppHelp");
+  const requestedTarget = new URLSearchParams(location.search).get("next") || "";
+  const managementKind = requestedTarget === "/staff.html" ? "staff" : ["/admin.html", "/owner.html"].includes(requestedTarget) ? "admin" : "";
+  const appName = managementKind === "staff" ? "DIPVTC Staff" : managementKind === "admin" ? "DIPVTC Admin" : "DIPVTC Family";
+  const installedKey = `dipvtc_pwa_installed_${managementKind || "family"}`;
+  const noticeSessionKey = `dipvtc_install_notice_seen_${managementKind || "family"}`;
   const installedMode = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
-  const installedBefore = (() => { try { return localStorage.getItem("dipvtc_pwa_installed") === "1"; } catch { return false; } })();
+  const installedBefore = (() => { try { return localStorage.getItem(installedKey) === "1" || (!managementKind && localStorage.getItem("dipvtc_pwa_installed") === "1"); } catch { return false; } })();
   if (installedMode || installedBefore) {
     if (installButton) installButton.hidden = true;
     return;
@@ -44,7 +49,7 @@
   function updateInstallState() {
     if (!modal) return;
     if (deferredPrompt) {
-      details.textContent = "Install the DIPVTC Family app for faster access to school updates and family portals.";
+      details.textContent = `Install the ${appName} app for faster access to its sign-in and dashboard.`;
       modalInstallButton.textContent = "Install app";
     } else {
       details.textContent = `${helpText()} Installing adds a shortcut to your device; you can keep using the website if you choose to do it later.`;
@@ -72,7 +77,7 @@
     modal = document.createElement("div");
     modal.className = "dipvtc-install-backdrop";
     modal.hidden = true;
-    modal.innerHTML = `<section class="dipvtc-install-dialog" role="dialog" aria-modal="true" aria-labelledby="dipvtcInstallTitle" aria-describedby="dipvtcInstallDetails"><button type="button" class="dipvtc-install-close" aria-label="Close install notice">×</button><h2 id="dipvtcInstallTitle">Install the DIPVTC Family app</h2><p id="dipvtcInstallDetails"></p><div class="dipvtc-install-actions"><button type="button" class="dipvtc-install-primary">Install app</button><button type="button" class="dipvtc-install-later">Maybe later</button></div><p class="dipvtc-install-note">You can continue using the website without installing.</p></section>`;
+    modal.innerHTML = `<section class="dipvtc-install-dialog" role="dialog" aria-modal="true" aria-labelledby="dipvtcInstallTitle" aria-describedby="dipvtcInstallDetails"><button type="button" class="dipvtc-install-close" aria-label="Close install notice">×</button><h2 id="dipvtcInstallTitle">Install ${appName}</h2><p id="dipvtcInstallDetails"></p><div class="dipvtc-install-actions"><button type="button" class="dipvtc-install-primary">Install app</button><button type="button" class="dipvtc-install-later">Maybe later</button></div><p class="dipvtc-install-note">You can continue using the website without installing.</p></section>`;
     document.body.append(modal);
     details = modal.querySelector("#dipvtcInstallDetails");
     modalInstallButton = modal.querySelector(".dipvtc-install-primary");
@@ -100,7 +105,7 @@
       await promptEvent.prompt();
       const choice = await promptEvent.userChoice;
       if (choice?.outcome === "accepted") {
-        try { localStorage.setItem("dipvtc_pwa_installed", "1"); } catch { /* Installed-mode detection still works. */ }
+        try { localStorage.setItem(installedKey, "1"); } catch { /* Installed-mode detection still works. */ }
         closeModal();
         if (installButton) installButton.hidden = true;
       } else {
@@ -118,21 +123,22 @@
   });
 
   window.addEventListener("appinstalled", () => {
-    try { localStorage.setItem("dipvtc_pwa_installed", "1"); } catch { /* Standalone detection still works. */ }
+    try { localStorage.setItem(installedKey, "1"); } catch { /* Standalone detection still works. */ }
     closeModal();
     if (installButton) installButton.hidden = true;
-    if (installHelp) { installHelp.hidden = false; installHelp.textContent = "DIPVTC Family is installed on this device."; }
+    if (installHelp) { installHelp.hidden = false; installHelp.textContent = `${appName} is installed on this device.`; }
   });
 
   if (installButton) {
     installButton.hidden = false;
+    installButton.textContent = `Install ${appName}`;
     installButton.addEventListener("click", openModal);
   }
 
   let alreadyShown = false;
-  try { alreadyShown = sessionStorage.getItem("dipvtc_install_notice_seen") === "1"; } catch { /* Show the notice if storage is unavailable. */ }
+  try { alreadyShown = sessionStorage.getItem(noticeSessionKey) === "1"; } catch { /* Show the notice if storage is unavailable. */ }
   if (!alreadyShown) {
-    try { sessionStorage.setItem("dipvtc_install_notice_seen", "1"); } catch { /* The notice can still be dismissed for this page. */ }
+    try { sessionStorage.setItem(noticeSessionKey, "1"); } catch { /* The notice can still be dismissed for this page. */ }
     window.setTimeout(openModal, 700);
   }
 })();
