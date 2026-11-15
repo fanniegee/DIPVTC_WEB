@@ -17,7 +17,7 @@
 .header{padding:38px 20px 34px;text-align:center;background:linear-gradient(135deg,#0a1931,#16345e);color:#fff}
 .header h1{margin:0;font-size:clamp(26px,4vw,38px);font-weight:900;letter-spacing:-.03em}.header p{margin:10px auto 0;max-width:700px;color:#d4e0f2;font-size:14px;line-height:1.7}
 .programs-grid{width:min(100%,1040px);margin:30px auto 52px;padding:0 20px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
-.school{--accent:#e67e22;--card-bg:#fff;--level-bg:#f5f7fb;display:flex;flex-direction:column;align-items:center;min-height:292px;padding:24px 22px 22px;background:var(--card-bg);border:1px solid #e5eaf1;border-top:5px solid var(--accent);border-radius:16px;box-shadow:0 6px 20px rgba(10,25,49,.07);text-align:center;transition:transform .18s ease,box-shadow .18s ease}
+.school{--accent:#e67e22;--card-bg:#fff;--level-bg:#f5f7fb;position:relative;isolation:isolate;display:flex;flex-direction:column;align-items:center;min-height:292px;padding:24px 22px 22px;background-color:var(--card-bg);background-image:linear-gradient(var(--card-tint),var(--card-tint)),var(--card-image);background-position:center;background-size:cover;background-repeat:no-repeat;border:1px solid #e5eaf1;border-top:5px solid var(--accent);border-radius:16px;box-shadow:0 6px 20px rgba(10,25,49,.07);text-align:center;transition:transform .18s ease,box-shadow .18s ease}
 .school:hover{transform:translateY(-3px);box-shadow:0 12px 28px rgba(10,25,49,.12)}
 .logo-box{width:106px;height:106px;margin:0 auto 12px;padding:10px;display:flex;align-items:center;justify-content:center;border-radius:50%;border:1px solid #e8edf4;background:#f8fafc;overflow:hidden}
 .logo-box img{display:block;width:100%;height:100%;object-fit:contain}.school h2{margin:4px 0 10px;font-size:19px;line-height:1.35;font-weight:800;color:#0a1931}
@@ -41,16 +41,19 @@
 <main class="programs-grid" id="programsGrid" aria-live="polite"></main>
 <script>
 const defaultSchools=[
-  {name:'Cambridge',desc:'ECD to A-Levels',link:'cambridge.html',logo:'/assets/images/cambridge.png',color:'#e67e22'},
-  {name:'DeityPro FX',desc:'Forex Trading Institute',link:'deityProFx.html',logo:'/assets/images/deityprofx-main.png',color:'#27ae60'},
-  {name:'Practical',desc:'Train | Develop | Succeed',link:'practical.html',logo:'/assets/images/practical.png',color:'#e67e22'},
-  {name:'South Africa CAPS | NCS',desc:'ECD to Grade 12 | Matric',link:'southafrica.html',logo:'/assets/images/southafrica.png',color:'#007a4d'},
-  {name:'Upgrade',desc:'Foundation to Grade 7',link:'upgrade.html',logo:'/assets/images/upgrade.png',color:'#e67e22'},
-  {name:'ZIMSEC',desc:'ECD to HEXCO',link:'zimsec.html',logo:'/assets/images/zimsec.png',color:'#5dade2'}
+  {name:'Cambridge',desc:'ECD to A-Levels',link:'cambridge.html',logo:'/assets/images/cambridge.png',backgroundImage:'/assets/images/cambridge-igcse.png',color:'#e67e22'},
+  {name:'DeityPro FX',desc:'Forex Trading Institute',link:'deityProFx.html',logo:'/assets/images/deityprofx-main.png',backgroundImage:'/assets/images/fx-technical.png',color:'#27ae60'},
+  {name:'Practical',desc:'Train | Develop | Succeed',link:'practical.html',logo:'/assets/images/practical.png',backgroundImage:'/assets/images/computer.png',color:'#e67e22'},
+  {name:'South Africa CAPS | NCS',desc:'ECD to Grade 12 | Matric',link:'southafrica.html',logo:'/assets/images/southafrica.png',backgroundImage:'/assets/images/sasenr.png',color:'#007a4d'},
+  {name:'Upgrade',desc:'Foundation to Grade 7',link:'upgrade.html',logo:'/assets/images/upgrade.png',backgroundImage:'/assets/images/foundation.png',color:'#e67e22'},
+  {name:'ZIMSEC',desc:'ECD to HEXCO',link:'zimsec.html',logo:'/assets/images/zimsec.png',backgroundImage:'/assets/images/zimsec-primary.png',color:'#5dade2'}
 ];
 function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));}
 function safeLocalLink(value){const raw=String(value||'').trim();if(!raw||/^(javascript|data):/i.test(raw))return '#';if(/^https:\/\//i.test(raw))return raw;return '/'+raw.replace(/^\/+/, '');}
 function iconPath(value){const raw=String(value||'').trim();if(/^https:\/\//i.test(raw))return raw;if(!raw||/^(javascript|data):/i.test(raw))return '/assets/images/dipvtc.png';if(raw.startsWith('/assets/'))return raw;if(raw.startsWith('assets/'))return '/'+raw;if(raw.startsWith('/images/'))return '/assets'+raw;if(raw.startsWith('images/'))return '/assets/'+raw;return '/assets/images/'+raw.replace(/^\/+/, '');}
+function backgroundPath(value,fallback){const raw=String(value||fallback||'').trim();if(/^https:\/\//i.test(raw))return raw;if(!raw||/^(javascript|data):/i.test(raw))return fallback||'';if(raw.startsWith('/assets/'))return raw;if(raw.startsWith('assets/'))return '/'+raw;if(raw.startsWith('/images/'))return '/assets'+raw;if(raw.startsWith('images/'))return '/assets/'+raw;return '/assets/images/'+raw.replace(/^\/+/, '');}
+function schoolBackground(s){if(s.backgroundImage)return backgroundPath(s.backgroundImage,'');const name=String(s.name||'').toLowerCase();if(name.includes('cambridge'))return '/assets/images/cambridge-igcse.png';if(name.includes('deity'))return '/assets/images/fx-technical.png';if(name.includes('practical'))return '/assets/images/computer.png';if(name.includes('south africa'))return '/assets/images/sasenr.png';if(name.includes('upgrade'))return '/assets/images/foundation.png';if(name.includes('zimsec'))return '/assets/images/zimsec-primary.png';return '';}
+function cssImageUrl(value){return value?`url(${JSON.stringify(value)})`:'none';}
 function loadPrograms(){
   const grid=document.getElementById('programsGrid');
   try{
@@ -72,7 +75,10 @@ function loadPrograms(){
       const desc=escapeHtml(s.desc||'');
       const logo=escapeHtml(iconPath(s.logo));
       const link=escapeHtml(safeLocalLink(s.link));
-      return `<article class="school" style="--accent:${accent};--card-bg:${palette[0]};--level-bg:${palette[1]}"><div class="logo-box"><img src="${logo}" alt="${name} logo" loading="lazy" onerror="this.onerror=null;this.src='/assets/images/dipvtc.png'"></div><h2>${name}</h2><p class="level">${desc}</p><a class="open-link" href="${link}" style="background:${accent}">Explore program</a></article>`;
+      const bg=cssImageUrl(schoolBackground(s));
+      const rgb=palette[0].match(/^#([0-9a-f]{6})$/i)?.[1]||'ffffff';
+      const tint=`rgba(${parseInt(rgb.slice(0,2),16)},${parseInt(rgb.slice(2,4),16)},${parseInt(rgb.slice(4,6),16)},.84)`;
+      return `<article class="school" style="--accent:${accent};--card-bg:${palette[0]};--card-tint:${tint};--card-image:${bg};--level-bg:${palette[1]}"><div class="logo-box"><img src="${logo}" alt="${name} logo" loading="lazy" onerror="this.onerror=null;this.src='/assets/images/dipvtc.png'"></div><h2>${name}</h2><p class="level">${desc}</p><a class="open-link" href="${link}" style="background:${accent}">Explore program</a></article>`;
     }).join('');
   }catch(error){
     console.error('Could not load Programs content:',error);

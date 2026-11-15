@@ -1,4 +1,4 @@
-const CACHE_NAME = "dipvtc-family-pwa-v1";
+const CACHE_NAME = "dipvtc-family-pwa-v2";
 const APP_SHELL = [
   "/offline.html",
   "/pwa-install.js",

@@ -40,7 +40,7 @@ const OWNER_KEYS = new Set([
   "dipvtc_site_whatsapp", "dipvtc_site_phones", "dipvtc_students", "dipvtc_subjects_image_boxes",
   "dipvtc_tasks", "dipvtc_team", "dipvtc_welcome_text", "dipvtc_welcome_title"
 ]);
-const ADMIN_KEYS = new Set(["dipvtc_courses", "dipvtc_students", "dipvtc_enquiries", "dipvtc_applications", "dipvtc_fees", "dipvtc_school_price_rules", "dipvtc_admission_sec_text", "dipvtc_admission_sec_title", "dipvtc_admission_text", "dipvtc_news_text", "dipvtc_news_title", "dipvtc_programs_title", "dipvtc_site_about", "dipvtc_site_aboutTitle", "dipvtc_site_address", "dipvtc_site_coursesTitle", "dipvtc_site_email", "dipvtc_site_facebook", "dipvtc_site_share_image", "dipvtc_site_favicon_url", "dipvtc_site_footer", "dipvtc_site_hero", "dipvtc_site_herosub", "dipvtc_site_instagram", "dipvtc_site_linkedin", "dipvtc_site_motto", "dipvtc_site_pinterest", "dipvtc_site_phones", "dipvtc_site_telegram", "dipvtc_site_threads", "dipvtc_site_tiktok", "dipvtc_site_whatsapp", "dipvtc_site_x", "dipvtc_site_youtube", "dipvtc_welcome_text", "dipvtc_welcome_title"]);
+const ADMIN_KEYS = new Set(["dipvtc_courses", "dipvtc_students", "dipvtc_enquiries", "dipvtc_applications", "dipvtc_fees", "dipvtc_school_price_rules", "dipvtc_admission_sec_text", "dipvtc_admission_sec_title", "dipvtc_admission_text", "dipvtc_news_text", "dipvtc_news_title", "dipvtc_programs_schools", "dipvtc_programs_title", "dipvtc_site_about", "dipvtc_site_aboutTitle", "dipvtc_site_address", "dipvtc_site_coursesTitle", "dipvtc_site_email", "dipvtc_site_facebook", "dipvtc_site_share_image", "dipvtc_site_favicon_url", "dipvtc_site_footer", "dipvtc_site_hero", "dipvtc_site_herosub", "dipvtc_site_instagram", "dipvtc_site_linkedin", "dipvtc_site_motto", "dipvtc_site_pinterest", "dipvtc_site_phones", "dipvtc_site_telegram", "dipvtc_site_threads", "dipvtc_site_tiktok", "dipvtc_site_whatsapp", "dipvtc_site_x", "dipvtc_site_youtube", "dipvtc_welcome_text", "dipvtc_welcome_title"]);
 const STAFF_ROLE_CODES = ["principal", "teacher", "admissions", "finance", "content", "front_desk", "driver", "staff"];
 const ADMISSION_SCHOOLS = [
   { code: "cambridge", name: "Cambridge", classes: [
@@ -56,7 +56,7 @@ const ADMISSION_SCHOOLS = [
 ];
 const ZIMSEC_PRIMARY_SUBJECTS = ["English Language", "Shona Mutauro", "Social Sciences", "Science and Technology", "Mathematics", "Physical Education and Arts"];
 const ZIMSEC_CLASS_PREFIX = "zimsec · ";
-const CONTENT_WRITE_KEYS = new Set(["dipvtc_admission_sec_text", "dipvtc_admission_sec_title", "dipvtc_admission_text", "dipvtc_news_text", "dipvtc_news_title", "dipvtc_programs_title", "dipvtc_site_about", "dipvtc_site_aboutTitle", "dipvtc_site_address", "dipvtc_site_coursesTitle", "dipvtc_site_email", "dipvtc_site_facebook", "dipvtc_site_share_image", "dipvtc_site_favicon_url", "dipvtc_site_footer", "dipvtc_site_hero", "dipvtc_site_herosub", "dipvtc_site_instagram", "dipvtc_site_linkedin", "dipvtc_site_motto", "dipvtc_site_pinterest", "dipvtc_site_phones", "dipvtc_site_telegram", "dipvtc_site_threads", "dipvtc_site_tiktok", "dipvtc_site_whatsapp", "dipvtc_site_x", "dipvtc_site_youtube", "dipvtc_welcome_text", "dipvtc_welcome_title"]);
+const CONTENT_WRITE_KEYS = new Set(["dipvtc_admission_sec_text", "dipvtc_admission_sec_title", "dipvtc_admission_text", "dipvtc_news_text", "dipvtc_news_title", "dipvtc_programs_schools", "dipvtc_programs_title", "dipvtc_site_about", "dipvtc_site_aboutTitle", "dipvtc_site_address", "dipvtc_site_coursesTitle", "dipvtc_site_email", "dipvtc_site_facebook", "dipvtc_site_share_image", "dipvtc_site_favicon_url", "dipvtc_site_footer", "dipvtc_site_hero", "dipvtc_site_herosub", "dipvtc_site_instagram", "dipvtc_site_linkedin", "dipvtc_site_motto", "dipvtc_site_pinterest", "dipvtc_site_phones", "dipvtc_site_telegram", "dipvtc_site_threads", "dipvtc_site_tiktok", "dipvtc_site_whatsapp", "dipvtc_site_x", "dipvtc_site_youtube", "dipvtc_welcome_text", "dipvtc_welcome_title"]);
 const STAFF_KEYS_BY_ROLE = {
   principal: new Set(["dipvtc_courses", "dipvtc_students", "dipvtc_pupils", "dipvtc_tasks"]),
   teacher: new Set(["dipvtc_courses", "dipvtc_students", "dipvtc_tasks", "dipvtc_course_teachers", "dipvtc_online_timetable", "dipvtc_calendar", "dipvtc_marking_engine_v1"]),
@@ -317,6 +317,11 @@ async function renderHtml(fileName, user, res) {
     html = html.replace(/<\/head>/i, `${iconLinks}${meta}</head>`);
   } else {
     html = html.replace(/<\/head>/i, `${iconLinks}</head>`);
+  }
+  if (!scopedUser) {
+    const installHead = `${/<link\b[^>]*\brel=["']manifest["']/i.test(html) ? "" : '<link rel="manifest" href="/manifest.webmanifest">'}${/<meta\b[^>]*\bname=["']theme-color["']/i.test(html) ? "" : '<meta name="theme-color" content="#0a1931">'}`;
+    if (installHead) html = html.replace(/<\/head>/i, `${installHead}</head>`);
+    if (!/\bsrc=["']\/pwa-install\.js["']/i.test(html)) html = html.replace(/<\/body>/i, '<script src="/pwa-install.js" defer></script></body>');
   }
   if (user) res.setHeader("Cache-Control", "no-store");
   res.type("html").send(html);
