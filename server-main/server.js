@@ -463,6 +463,17 @@ app.get("/api/admissions/learners",requireRole("owner","admin","admissions"),asy
   try{const r=await pool.query("SELECT s.id,s.student_number,s.full_name,s.active,c.level,c.name AS class_name,p.school_code,p.intended_class,p.boarding_status,p.date_of_birth,p.gender,p.address,p.guardian_name,p.guardian_email,p.guardian_phone,p.student_email,p.health_condition_status,p.health_conditions,p.health_condition_other,p.has_allergies,p.allergies,p.allergy_other,p.doctor_name,p.doctor_clinic,p.doctor_phone,p.doctor_email,p.doctor_address,p.health_notes FROM students s LEFT JOIN classes c ON c.id=s.class_id LEFT JOIN learner_profiles p ON p.student_id=s.id ORDER BY s.created_at DESC");res.setHeader("Cache-Control","no-store");res.json({learners:r.rows});}catch(e){next(e);}
 });
 
+app.get("/api/fees/config",requireRole("owner","finance"),async(_req,res,next)=>{
+  try{
+    const result=await pool.query("SELECT value FROM site_state WHERE state_key='dipvtc_fees'");
+    const fees=decodeStoredState(result.rows[0]?.value,[]);
+    let exchangeRate=null;
+    try{exchangeRate=await refreshUsdZarMarketRate();}catch(error){console.warn("Official USD/ZAR rate unavailable to Fees Audit Engine:",error.message);}
+    res.setHeader("Cache-Control","no-store");
+    res.json({fees:Array.isArray(fees)?fees:[],exchangeRate});
+  }catch(error){next(error);}
+});
+
 app.get("/api/fees/learners",requireRole("owner","finance"),async(_req,res,next)=>{
   try{
     const r=await pool.query("SELECT s.id,s.student_number,s.full_name,s.active,c.level,c.name AS class_name,p.school_code,p.intended_class FROM students s LEFT JOIN classes c ON c.id=s.class_id LEFT JOIN learner_profiles p ON p.student_id=s.id ORDER BY s.created_at DESC");
