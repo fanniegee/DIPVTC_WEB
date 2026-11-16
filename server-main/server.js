@@ -463,6 +463,21 @@ app.get("/api/admissions/learners",requireRole("owner","admin","admissions"),asy
   try{const r=await pool.query("SELECT s.id,s.student_number,s.full_name,s.active,c.level,c.name AS class_name,p.school_code,p.intended_class,p.boarding_status,p.date_of_birth,p.gender,p.address,p.guardian_name,p.guardian_email,p.guardian_phone,p.student_email,p.health_condition_status,p.health_conditions,p.health_condition_other,p.has_allergies,p.allergies,p.allergy_other,p.doctor_name,p.doctor_clinic,p.doctor_phone,p.doctor_email,p.doctor_address,p.health_notes FROM students s LEFT JOIN classes c ON c.id=s.class_id LEFT JOIN learner_profiles p ON p.student_id=s.id ORDER BY s.created_at DESC");res.setHeader("Cache-Control","no-store");res.json({learners:r.rows});}catch(e){next(e);}
 });
 
+app.delete("/api/fees/payments",requireRole("owner","finance"),async(req,res,next)=>{
+  const client=await pool.connect();
+  try{
+    await client.query("BEGIN");
+    const saved=await client.query("SELECT value FROM site_state WHERE state_key='di_payments' FOR UPDATE");
+    let payments=saved.rows[0]?.value??[];
+    for(let depth=0;typeof payments==="string"&&depth<2;depth++){try{payments=JSON.parse(payments)}catch{payments=[]}}
+    const clearedCount=Array.isArray(payments)?payments.length:0,encoded=JSON.stringify("[]");
+    await client.query("INSERT INTO site_state(state_key,value,updated_by,updated_at) VALUES('di_payments',$1::jsonb,$2,NOW()) ON CONFLICT(state_key) DO UPDATE SET value=EXCLUDED.value,updated_by=EXCLUDED.updated_by,updated_at=NOW()",[encoded,req.user.id]);
+    await client.query("INSERT INTO app_audit_log(user_id,action,target_key) VALUES($1,'fees-audit-payments-cleared',$2)",[req.user.id,String(clearedCount)+" payment records"]);
+    await client.query("COMMIT");
+    res.setHeader("Cache-Control","no-store");res.json({ok:true,clearedCount});
+  }catch(error){await client.query("ROLLBACK").catch(()=>{});next(error)}finally{client.release()}
+});
+
 app.get("/api/fees/config",requireRole("owner","finance"),async(_req,res,next)=>{
   try{
     const result=await pool.query("SELECT value FROM site_state WHERE state_key='dipvtc_fees'");
