@@ -389,6 +389,7 @@ app.post("/api/auth/login", async (req, res, next) => {
     if (portal === "/admin.html" && !["owner", "admin"].includes(user.role)) return res.status(403).json({ error: "Staff accounts must use Staff Login." });
     if (portal === "/owner.html" && user.role !== "owner") return res.status(403).json({ error: "This account cannot open the Owner panel." });
     if (portal === "/payment-review.html" && !["owner","admin","finance"].includes(user.role)) return res.status(403).json({ error: "Payment approvals are available to Owner, Main Admin and Finance accounts." });
+    if (["/registration-requests.html","/family-rules-records.html"].includes(portal) && !await requireRoleMatches(user,["owner","admin","admissions"])) return res.status(403).json({ error: "These admissions records are available to Owner, Main Admin and Admissions accounts." });
     if (portal === "/parent-portal.html" && user.role !== "parent") return res.status(403).json({ error: "Use the Parent Portal sign-in for a Parent account." });
     if (portal === "/student-portal.html" && user.role !== "student") return res.status(403).json({ error: "Use the Student Portal sign-in for a Student account." });
     if (user.role === "owner") {

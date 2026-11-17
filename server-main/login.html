@@ -41,7 +41,7 @@
   <script>
     const params=new URLSearchParams(location.search);
     const requested=params.get("next");
-    const next=["/staff.html","/admin.html","/owner.html","/payment-review.html","/exam-mark-entry/","/parent-portal.html","/student-portal.html"].includes(requested)?requested:"";
+    const next=["/staff.html","/admin.html","/owner.html","/payment-review.html","/exam-mark-entry/","/parent-portal.html","/student-portal.html","/registration-requests.html","/family-rules-records.html"].includes(requested)?requested:"";
     const title=document.getElementById("loginTitle");
     const hint=document.getElementById("loginHint");
     const managementManifest=document.getElementById("managementManifest");
@@ -64,7 +64,7 @@
       hint.textContent="Use the school Owner account to open the Owner panel.";
     }else if(next==="/parent-portal.html"){
       title.textContent="Parent Portal sign in"; hint.textContent="View learning updates and records for learners linked to your parent account.";
-    }else if(next==="/student-portal.html"){
+    }else if(next==="/registration-requests.html"||next==="/family-rules-records.html"){$title.textContent="Admissions sign in";$hint.textContent="Sign in with an Owner, Main Admin or Admissions account to open this page.";}else if(next==="/student-portal.html"){
       title.textContent="Student Portal sign in"; hint.textContent="Open your personal learning dashboard using the account issued by Admissions.";
     }
     let twoFactorChallenge="";
@@ -97,7 +97,7 @@
         }else if(next==="/payment-review.html"){
           if(!["owner","admin","finance"].includes(role))throw new Error("Payment approvals are available to Owner, Main Admin and Finance accounts.");
           destination="/payment-review.html";
-        }else if(next==="/parent-portal.html"||next==="/student-portal.html"){
+        }else if(next==="/registration-requests.html"||next==="/family-rules-records.html"){destination=next;}else if(next==="/parent-portal.html"||next==="/student-portal.html"){
           if(role!==(next==="/parent-portal.html"?"parent":"student"))throw new Error("This account cannot open that portal. Choose the correct portal sign-in.");
           destination=next;
         }else{
