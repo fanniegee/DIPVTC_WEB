@@ -7,3 +7,5 @@
 .assignment-notice{margin:12px 0;padding:13px 15px;border:2px solid #1680ff;border-radius:10px;background:#e7f2ff;color:#075cce;font-weight:900;font-size:12px;line-height:1.55;animation:assignment-notice-pulse 1.35s ease-in-out infinite}.assignment-notice.assignment-complete{border-color:#83d5a2;background:#effaf2;color:#176c3b;animation:none}@keyframes assignment-notice-pulse{0%,100%{box-shadow:0 0 0 0 rgba(22,128,255,0);text-shadow:0 0 0 rgba(7,92,206,0)}50%{box-shadow:0 0 0 4px rgba(22,128,255,.23);text-shadow:0 0 8px rgba(7,92,206,.25)}}@media(prefers-reduced-motion:reduce){.assignment-notice{animation:none}}
 
 .stat.assignment-stat-active{border-color:#1680ff;background:#e7f2ff;color:#075cce;animation:assignment-notice-pulse 1.35s ease-in-out infinite}.stat.assignment-stat-active small{color:#075cce}
+
+.assignment-due{display:block;margin-top:7px;color:#075cce;font-size:10px;font-weight:800;line-height:1.5}
