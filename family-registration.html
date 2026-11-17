@@ -61,7 +61,7 @@
     <form id="registrationForm">
       <div class="grid">
         <div class="field"><label for="studentName">Student full name</label><input id="studentName" name="studentName" autocomplete="name" maxlength="180" required></div>
-        <div class="field"><label for="studentEmail">Student email (required)</label><input id="studentEmail" name="studentEmail" type="email" autocomplete="email" maxlength="254" required></div>
+        <div class="field"><label for="studentEmail">Student email (required)</label><input id="studentEmail" name="studentEmail" type="email" autocomplete="email" maxlength="254" required><small>Use an email address that is not already registered for a school portal account.</small></div>
         <div class="field"><label for="password">Create student password</label><input id="password" name="password" type="password" minlength="10" maxlength="256" autocomplete="new-password" required><small>At least 10 characters. The student will use this after approval.</small></div>
         <div class="field"><label for="confirmPassword">Confirm password</label><input id="confirmPassword" name="confirmPassword" type="password" minlength="10" maxlength="256" autocomplete="new-password" required></div>
         <div class="field"><label for="schoolCode">Choose school</label><select id="schoolCode" name="schoolCode" required><option value="">Loading schools…</option></select></div>
@@ -69,7 +69,7 @@
         <div class="field"><label for="boardingStatus">Learner accommodation</label><select id="boardingStatus" name="boardingStatus" required><option value="day">Day learner</option><option value="boarding">Boarding learner</option></select></div>
         <div class="field"><label for="dateOfBirth">Learner date of birth (optional)</label><input id="dateOfBirth" name="dateOfBirth" type="date"></div>
         <div class="field"><label for="guardianName">Parent / guardian name</label><input id="guardianName" name="guardianName" autocomplete="name" maxlength="180"></div>
-        <div class="field"><label for="guardianEmail">Parent / guardian email (required)</label><input id="guardianEmail" name="guardianEmail" type="email" autocomplete="email" maxlength="254" required></div>
+        <div class="field"><label for="guardianEmail">Parent / guardian email (required)</label><input id="guardianEmail" name="guardianEmail" type="email" autocomplete="email" maxlength="254" required><small>Do not use a student, staff or admin login email. An existing Parent Portal email can be reused with its current password.</small></div>
         <div class="field"><label for="guardianPassword">Create parent / guardian password</label><input id="guardianPassword" name="guardianPassword" type="password" minlength="10" maxlength="256" autocomplete="new-password" required><small>At least 10 characters. If this email already has a Parent Portal account, its existing password stays unchanged.</small></div>
         <div class="field"><label for="confirmGuardianPassword">Confirm parent / guardian password</label><input id="confirmGuardianPassword" name="confirmGuardianPassword" type="password" minlength="10" maxlength="256" autocomplete="new-password" required></div>
         <div class="field"><label for="guardianPhone">Parent / guardian phone (optional)</label><input id="guardianPhone" name="guardianPhone" autocomplete="tel" maxlength="40"></div>
