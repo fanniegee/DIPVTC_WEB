@@ -9,3 +9,5 @@
 .stat.assignment-stat-active{border-color:#1680ff;background:#e7f2ff;color:#075cce;animation:assignment-notice-pulse 1.35s ease-in-out infinite}.stat.assignment-stat-active small{color:#075cce}
 
 .assignment-due{display:block;margin-top:7px;color:#075cce;font-size:10px;font-weight:800;line-height:1.5}
+
+.payment-alert-current{color:#176c3b;background:#effaf2;border-color:#38a76a;animation:none}
