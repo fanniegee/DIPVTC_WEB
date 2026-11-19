@@ -201,7 +201,17 @@ function parseHealthInformation(body) {
   }};
 }
 async function nextStudentNumber(client, schoolYear = new Date().getFullYear()) {
-  const result = await client.query("INSERT INTO student_number_counters(school_year,last_number) VALUES($1,1) ON CONFLICT(school_year) DO UPDATE SET last_number=student_number_counters.last_number+1 RETURNING last_number", [schoolYear]);
+  // Reconcile the counter with both enrolled learners and pending applications.
+  // This also repairs counters made stale by records imported after the migration.
+  const existing = await client.query(
+    "SELECT GREATEST(COALESCE((SELECT MAX(split_part(student_number,'-',3)::bigint) FROM students WHERE student_number ~ ('^DIP-'||$1::text||'-[0-9]+$')),0),COALESCE((SELECT MAX(split_part(student_number,'-',3)::bigint) FROM student_registration_requests WHERE student_number ~ ('^DIP-'||$1::text||'-[0-9]+$')),0)) AS max_number",
+    [schoolYear]
+  );
+  const floor = Number(existing.rows[0]?.max_number || 0);
+  const result = await client.query(
+    "INSERT INTO student_number_counters(school_year,last_number) VALUES($1,$2) ON CONFLICT(school_year) DO UPDATE SET last_number=GREATEST(student_number_counters.last_number,EXCLUDED.last_number-1)+1 RETURNING last_number",
+    [schoolYear, floor + 1]
+  );
   return "DIP-" + schoolYear + "-" + String(result.rows[0].last_number).padStart(3, "0");
 }
 async function reserveStudentNumber(client, value) {
@@ -458,7 +468,7 @@ app.post("/api/admissions/learners", requireRole("owner","admin","admissions"), 
     await client.query("INSERT INTO app_audit_log(user_id,action,target_key) VALUES($1,'learner-registration',$2)",[req.user.id,number]);await client.query("COMMIT");
     const emailDelivery=[];for(const t of links){try{await mailer.sendAccountEmail({to:t.email,name:t.name,role:t.role,kind:"activation",expiresAt:t.expiresAt,url:publicUrl(req,"/portal-register.html?token="+encodeURIComponent(t.token))});emailDelivery.push({email:t.email,role:t.role,sent:true});}catch(e){console.warn("Portal activation email failed:",e.code||"email transport error");emailDelivery.push({email:t.email,role:t.role,sent:false});}}
     res.status(201).json({learner:learner.rows[0],emailDelivery,studentAccountSkipped:!!studentEmail&&studentEmail===guardianEmail});
-  }catch(e){await client.query("ROLLBACK").catch(()=>{});next(e);}finally{client.release();}
+  }catch(e){await client.query("ROLLBACK").catch(()=>{});if(e.code==="23505"&&e.constraint==="students_student_number_key")e=Object.assign(new Error("That student number is already in use. Enter a different number or leave the field blank to assign a new one."),{status:409});next(e);}finally{client.release();}
 });
 
 app.get("/api/admissions/learners",requireRole("owner","admin","admissions"),async(_req,res,next)=>{
