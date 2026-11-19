@@ -264,7 +264,7 @@ function requireRole(...roles) {
     }
     try{if(!await requireRoleMatches(req.user,roles))return req.path.startsWith("/api/")
       ? res.status(403).json({ error: "Your account does not have permission for this action." })
-      : res.status(403).send("You do not have permission to view this page.");if(req.path.startsWith("/api/portal/")&&req.path!=="/api/portal/home"&&!req.path.startsWith("/api/portal/payments")&&["parent","student"].includes(req.user.role)){const linked=await portalStudentIds(req.user),target=String(req.body?.studentId||req.query?.studentId||req.params?.id||linked[0]||"");if(target){const access=await assertPortalPaymentAccess(req.user,target);if(access?.error)return res.status(access.status).json({error:access.message,payment:access.payment})}}next();}catch(error){next(error)}
+      : res.status(403).send("You do not have permission to view this page.");if(req.path.startsWith("/api/portal/")&&req.path!=="/api/portal/home"&&!req.path.startsWith("/api/portal/payments")&&!["/api/portal/family-rules/status","/api/portal/family-rules/sign"].includes(req.path)&&["parent","student"].includes(req.user.role)){const linked=await portalStudentIds(req.user),target=String(req.body?.studentId||req.query?.studentId||req.params?.id||linked[0]||"");if(target){const access=await assertPortalPaymentAccess(req.user,target);if(access?.error)return res.status(access.status).json({error:access.message,payment:access.payment})}}next();}catch(error){next(error)}
   };
 }
 app.use("/exam-mark-entry", requireRole("teacher"));
