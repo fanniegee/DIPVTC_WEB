@@ -7,9 +7,9 @@
         <legend>Student Health Information</legend>
         <p class="health-help">This information is private and is available to authorised school admissions and administration staff. Select “No known…” only if the learner has no known condition or allergy.</p>
         <div class="health-field"><label for="healthConditionStatus">Known health conditions</label><select id="healthConditionStatus" required><option value="">Choose one</option><option value="none">No known health conditions</option><option value="has_conditions">One or more health conditions</option></select></div>
-        <div id="healthConditionChoices" class="health-field" hidden><span class="health-label">Select all that apply</span><div class="health-options">${CONDITIONS.map((x,i)=>'<label><input type="checkbox" name="healthConditions" value="'+x+'" id="hc'+i+'"><span>'+x+'</span></label>').join("")}</div><label for="healthConditionOther">Other health problem not listed</label><input id="healthConditionOther" maxlength="500" placeholder="Describe any other condition"></div>
+        <div id="healthConditionChoices" class="health-field"><span class="health-label">Tick all applicable conditions</span><div class="health-options">${CONDITIONS.map((x,i)=>'<label><input type="checkbox" name="healthConditions" value="'+x+'" id="hc'+i+'"><span>'+x+'</span></label>').join("")}</div><label for="healthConditionOther">Other health problem not listed</label><input id="healthConditionOther" maxlength="500" placeholder="Describe any other condition"></div>
         <div class="health-field"><label for="hasAllergies">Does the learner have any known allergies?</label><select id="hasAllergies" required><option value="">Choose Yes or No</option><option value="no">No known allergies</option><option value="yes">Yes, one or more allergies</option></select></div>
-        <div id="allergyChoices" class="health-field" hidden><span class="health-label">Select all known allergies</span><div class="health-options">${ALLERGIES.map((x,i)=>'<label><input type="checkbox" name="allergies" value="'+x+'" id="al'+i+'"><span>'+x+'</span></label>').join("")}</div><label for="allergyOther">Other allergy not listed</label><input id="allergyOther" maxlength="500" placeholder="Describe any other allergy"></div>
+        <div id="allergyChoices" class="health-field"><span class="health-label">Tick all applicable allergies</span><div class="health-options">${ALLERGIES.map((x,i)=>'<label><input type="checkbox" name="allergies" value="'+x+'" id="al'+i+'"><span>'+x+'</span></label>').join("")}</div><label for="allergyOther">Other allergy not listed</label><input id="allergyOther" maxlength="500" placeholder="Describe any other allergy"></div>
         <div id="doctorDetails" class="health-doctor" hidden><h3>Doctor / clinic details</h3><p class="health-help">Please provide the learner’s doctor or clinic contact details when reporting a condition or allergy.</p><div class="health-grid">
           <div><label for="doctorName">Doctor’s full name *</label><input id="doctorName" maxlength="180"></div>
           <div><label for="doctorClinic">Clinic / medical practice *</label><input id="doctorClinic" maxlength="180"></div>
@@ -29,13 +29,23 @@
     const doctorName = $("doctorName"), doctorClinic = $("doctorClinic"), doctorPhone = $("doctorPhone");
     function sync() {
       const hasCondition = conditionStatus.value === "has_conditions", hasAllergy = allergyStatus.value === "yes";
-      conditionChoices.hidden = !hasCondition; allergyChoices.hidden = !hasAllergy; doctor.hidden = !(hasCondition || hasAllergy);
+      conditionChoices.hidden = conditionStatus.value === "none"; allergyChoices.hidden = allergyStatus.value === "no"; doctor.hidden = !(hasCondition || hasAllergy);
       const condChecked = [...container.querySelectorAll('[name="healthConditions"]:checked')], allergyChecked = [...container.querySelectorAll('[name="allergies"]:checked')];
       condOther.required = hasCondition && condChecked.some(x=>x.value==="Other");
       allergyOther.required = hasAllergy && allergyChecked.some(x=>x.value==="Other");
       for (const input of [doctorName,doctorClinic,doctorPhone]) input.required = !doctor.hidden;
     }
-    container.addEventListener("change", sync);
+    container.addEventListener("change", event => {
+      if (event.target === conditionStatus && conditionStatus.value === "none") {
+        container.querySelectorAll('[name="healthConditions"]').forEach(input => input.checked = false); condOther.value = "";
+      }
+      if (event.target === allergyStatus && allergyStatus.value === "no") {
+        container.querySelectorAll('[name="allergies"]').forEach(input => input.checked = false); allergyOther.value = "";
+      }
+      if (event.target.matches?.('[name="healthConditions"]') && event.target.checked) conditionStatus.value = "has_conditions";
+      if (event.target.matches?.('[name="allergies"]') && event.target.checked) allergyStatus.value = "yes";
+      sync();
+    });
     function values() {
       const selected = name => [...container.querySelectorAll('[name="'+name+'"]:checked')].map(x=>x.value);
       return {
