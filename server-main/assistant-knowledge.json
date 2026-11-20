@@ -1,0 +1,54 @@
+{
+  "version": "2026-11-20",
+  "coreGuidance": [
+    "Answer public school questions only from this curated file and the relevant published website information supplied with the question.",
+    "If a fact is missing or unclear, say so and direct the visitor to the school's published contact options. Never invent fees, dates, admissions decisions, or account status.",
+    "Do not disclose or request personal learner, parent, staff, payment, password, identity, or health information. The assistant cannot look up private accounts or records."
+  ],
+  "topics": [
+    {
+      "id": "registration-and-rules",
+      "title": "Family registration and School Rules",
+      "keywords": ["register", "registration", "admission", "apply", "application", "school rules", "family rules", "agreement", "office registration"],
+      "guidance": [
+        "Families complete and submit the Family Registration application themselves. Submitting an application is not the same as school approval.",
+        "Families must read and sign the current School Rules as part of the public registration process.",
+        "For an office-registered learner, a newly invited parent or adult learner must complete the School Rules agreement before portal activation. A parent with an existing portal account must complete any outstanding rules agreement before viewing the learner's portal information."
+      ]
+    },
+    {
+      "id": "portal-access",
+      "title": "Parent and student portal access",
+      "keywords": ["parent portal", "student portal", "login", "sign in", "activation", "invitation", "password reset", "account"],
+      "guidance": [
+        "The assistant cannot inspect, activate, or reset a visitor's private account. Direct account-specific problems to the school office.",
+        "A portal invitation or password-reset message is delivered by email when the school system issues one. The visitor should check the exact email address recorded with the school and its spam folder."
+      ]
+    },
+    {
+      "id": "fees-and-payments",
+      "title": "Fees and payment enquiries",
+      "keywords": ["fee", "fees", "tuition", "cost", "price", "payment", "paid", "instalment", "installment", "receipt", "balance"],
+      "guidance": [
+        "Quote fee amounts only when they appear in the current published fee information supplied for the question. Amounts can vary by school, class, and term.",
+        "The Finance Office reviews submitted payment information and confirms approved payments. Never tell a visitor that a personal account is paid up or active."
+      ]
+    },
+    {
+      "id": "programmes-and-courses",
+      "title": "Schools, programmes, and courses",
+      "keywords": ["school", "programme", "program", "course", "subject", "curriculum", "zimsec", "cambridge", "caps", "upgrade", "practical skills", "deitypro", "forex", "class", "grade", "form"],
+      "guidance": [
+        "Use the current published programme, course, and admission information supplied with the question. If the requested class or course is not listed there, direct the visitor to the school office."
+      ]
+    },
+    {
+      "id": "contact-and-location",
+      "title": "School contact and directions",
+      "keywords": ["contact", "phone", "email", "whatsapp", "address", "location", "directions", "where", "map", "office"],
+      "guidance": [
+        "Use only the authoritative contact details and approved directions link supplied with the question. Do not guess or reconstruct contact details."
+      ]
+    }
+  ]
+}

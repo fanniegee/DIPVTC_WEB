@@ -37,6 +37,12 @@ The homepage welcome card and each Study Pathway card load image slides only fro
 
 The `dipvtc_enquiries` compatibility list is synchronized with `website_enquiries`. The original Local Edition files under `assets/DIPvtC-MARK-ENGINE-v4.1.0-local-test-ready` remain unchanged as reference. The server serves a copy under `exam-mark-entry/`, with its storage changed to the authenticated server adapter.
 
+## Public information assistant
+
+The public visitor assistant combines the centrally maintained `server-main/assistant-knowledge.json` guidance with relevant published website pages and current public settings from PostgreSQL. Keep stable rules and process guidance in that JSON file; keep changing fees, dates, contacts and programme details in the existing published settings/pages. The assistant reads the central file for each answer, selects matching topic entries, and does not crawl the whole website.
+
+Assistant request limits are stored in PostgreSQL and shared across service instances: up to 12 requests per anonymous browser session and 60 per network in each 10-minute window. A PostgreSQL lease semaphore caps simultaneous calls across all instances at 8 by default. Set `PUBLIC_ASSISTANT_MAX_CONCURRENT` in the service environment to tune that cap. On Render, configure `TRUST_PROXY` for the actual proxy chain so the network limit uses visitor addresses rather than treating all requests as one proxy address.
+
 ## Migration and rollout notes
 
 The server and browser file origins have separate storage. Existing values from the old `file://` or hosted website are not automatically copied to localhost. Use sample records for the first localhost test; a reviewed export/import migration is needed before moving existing live records. The remaining site pages still use their current browser storage and will be migrated in later steps.

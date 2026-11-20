@@ -1278,6 +1278,16 @@ async function loadAssistantPublicPages(question) {
   }));
   return Object.fromEntries(entries.filter(([,text])=>text));
 }
+async function loadAssistantKnowledge(question) {
+  const source=JSON.parse(await fs.readFile(path.join(__dirname,"assistant-knowledge.json"),"utf8"));
+  const q=String(question||"").toLowerCase();
+  const topics=(Array.isArray(source.topics)?source.topics:[]).map(topic=>{
+    const keywords=Array.isArray(topic.keywords)?topic.keywords:[];
+    const score=keywords.reduce((total,keyword)=>total+(q.includes(String(keyword).toLowerCase())?1:0),0);
+    return {topic,score};
+  }).filter(item=>item.score>0).sort((a,b)=>b.score-a.score).slice(0,5).map(({topic})=>({id:topic.id,title:topic.title,guidance:topic.guidance}));
+  return {version:source.version||"",coreGuidance:Array.isArray(source.coreGuidance)?source.coreGuidance:[],relevantTopics:topics};
+}
 function compactAssistantValue(raw,maxLength=1400) {
   const value=decodeStoredState(raw,raw);
   function trim(input,depth=0){
@@ -1292,7 +1302,48 @@ function compactAssistantValue(raw,maxLength=1400) {
   else if(compact&&typeof compact==="object")while(Object.keys(compact).length&&JSON.stringify(compact).length>maxLength)delete compact[Object.keys(compact).at(-1)];
   if(JSON.stringify(compact).length>maxLength)return String(compact).slice(0,maxLength);
   return compact;
-}const assistantLimiter = rateLimit({ windowMs: 10 * 60 * 1000, limit: 12, standardHeaders: "draft-7", legacyHeaders: false });
+}
+const ASSISTANT_RATE_WINDOW_MS=10*60*1000;
+const ASSISTANT_MAX_CONCURRENT=Math.max(1,Math.min(40,Number.parseInt(process.env.PUBLIC_ASSISTANT_MAX_CONCURRENT||"8",10)||8));
+const ASSISTANT_SESSION_COOKIE="dipvtc_assistant_session";
+class PostgresAssistantRateLimitStore {
+  constructor(prefix){this.prefix=prefix;this.windowMs=ASSISTANT_RATE_WINDOW_MS}
+  init(options){this.windowMs=options.windowMs||ASSISTANT_RATE_WINDOW_MS}
+  bucket(key){return `${this.prefix}:${key}`.slice(0,500)}
+  async increment(key){
+    const result=await pool.query(`INSERT INTO public_assistant_rate_limits(bucket_key,window_started_at,hit_count) VALUES($1,NOW(),1)
+      ON CONFLICT(bucket_key) DO UPDATE SET
+        window_started_at=CASE WHEN public_assistant_rate_limits.window_started_at <= NOW()-($2::bigint*INTERVAL '1 millisecond') THEN NOW() ELSE public_assistant_rate_limits.window_started_at END,
+        hit_count=CASE WHEN public_assistant_rate_limits.window_started_at <= NOW()-($2::bigint*INTERVAL '1 millisecond') THEN 1 ELSE public_assistant_rate_limits.hit_count+1 END
+      RETURNING hit_count,window_started_at`,[this.bucket(key),this.windowMs]);
+    if(Math.random()<1/256)pool.query("DELETE FROM public_assistant_rate_limits WHERE window_started_at<NOW()-INTERVAL '1 day'").catch(()=>{});
+    const row=result.rows[0];return {totalHits:Number(row.hit_count),resetTime:new Date(new Date(row.window_started_at).getTime()+this.windowMs)};
+  }
+  async get(key){const result=await pool.query("SELECT hit_count,window_started_at FROM public_assistant_rate_limits WHERE bucket_key=$1",[this.bucket(key)]);if(!result.rowCount)return undefined;const row=result.rows[0];return {totalHits:Number(row.hit_count),resetTime:new Date(new Date(row.window_started_at).getTime()+this.windowMs)}}
+  async decrement(key){await pool.query("UPDATE public_assistant_rate_limits SET hit_count=GREATEST(0,hit_count-1) WHERE bucket_key=$1",[this.bucket(key)])}
+  async resetKey(key){await pool.query("DELETE FROM public_assistant_rate_limits WHERE bucket_key=$1",[this.bucket(key)])}
+  async resetAll(){await pool.query("DELETE FROM public_assistant_rate_limits WHERE bucket_key LIKE $1",[`${this.prefix}:%`])}
+}
+function ensureAssistantVisitorSession(req,res,next){
+  const pair=(req.headers.cookie||"").split(";").map(value=>value.trim()).find(value=>value.startsWith(`${ASSISTANT_SESSION_COOKIE}=`));
+  let token=pair?pair.slice(ASSISTANT_SESSION_COOKIE.length+1):"";
+  if(!/^[A-Za-z0-9_-]{40,50}$/.test(token)){token=crypto.randomBytes(32).toString("base64url");res.cookie(ASSISTANT_SESSION_COOKIE,token,{httpOnly:true,sameSite:"lax",secure:Boolean(req.secure),path:"/api/public/assistant",maxAge:30*24*60*60*1000})}
+  req.assistantVisitorKey=crypto.createHash("sha256").update(token).digest("hex");next();
+}
+const assistantNetworkLimiter=rateLimit({windowMs:ASSISTANT_RATE_WINDOW_MS,limit:60,standardHeaders:false,legacyHeaders:false,store:new PostgresAssistantRateLimitStore("assistant-network"),message:{error:"Too many assistant requests from this network. Please wait a few minutes and try again."}});
+const assistantVisitorLimiter=rateLimit({windowMs:ASSISTANT_RATE_WINDOW_MS,limit:12,standardHeaders:"draft-7",legacyHeaders:false,keyGenerator:req=>req.assistantVisitorKey,validate:{keyGeneratorIpFallback:false},store:new PostgresAssistantRateLimitStore("assistant-visitor"),message:{error:"You have reached the assistant question limit for now. Please wait a few minutes and try again."}});
+async function acquireAssistantCapacity(){
+  const client=await pool.connect(),leaseId=crypto.randomUUID();
+  try{await client.query("BEGIN");await client.query("SELECT pg_advisory_xact_lock(4739211)");await client.query("DELETE FROM public_assistant_concurrency_leases WHERE expires_at<=NOW()");const active=await client.query("SELECT COUNT(*)::int AS count FROM public_assistant_concurrency_leases");if(Number(active.rows[0].count)>=ASSISTANT_MAX_CONCURRENT){await client.query("ROLLBACK");return null}await client.query("INSERT INTO public_assistant_concurrency_leases(lease_id,expires_at) VALUES($1,NOW()+INTERVAL '2 minutes')",[leaseId]);await client.query("COMMIT");return leaseId}catch(error){await client.query("ROLLBACK").catch(()=>{});throw error}finally{client.release()}
+}
+async function releaseAssistantCapacity(leaseId){await pool.query("DELETE FROM public_assistant_concurrency_leases WHERE lease_id=$1",[leaseId]).catch(error=>console.warn("Assistant capacity lease release failed:",error.code||"database error"))}
+async function ensureAssistantCapacityTables(){
+  await pool.query(`CREATE TABLE IF NOT EXISTS public_assistant_rate_limits(bucket_key VARCHAR(500) PRIMARY KEY,window_started_at TIMESTAMPTZ NOT NULL,hit_count INTEGER NOT NULL CHECK(hit_count>=0));
+    CREATE INDEX IF NOT EXISTS public_assistant_rate_limits_window_idx ON public_assistant_rate_limits(window_started_at);
+    CREATE TABLE IF NOT EXISTS public_assistant_concurrency_leases(lease_id UUID PRIMARY KEY,expires_at TIMESTAMPTZ NOT NULL);
+    CREATE INDEX IF NOT EXISTS public_assistant_concurrency_leases_expiry_idx ON public_assistant_concurrency_leases(expires_at);`);
+}
+const assistantLimiter=assistantVisitorLimiter;
 const assistantSensitivePattern = /\b(?:my|our|child(?:'s|’s)|student(?:'s|’s))\s+(?:password|passcode|pin|id(?:\s+number)?|passport|bank|card|medical|health|diagnosis|condition|allergy|doctor)\b|\b(?:password|passcode|pin)\s*(?:is|:|=)\s*\S+|\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b|\b\d{9,}\b/i;
 function assistantPublicText(value, maxLength = 30000) {
   let parsed;
@@ -1329,7 +1380,12 @@ function assistantPublicText(value, maxLength = 30000) {
     return details?`${details}. For WhatsApp support, use the WhatsApp support button above.`:"Please use the Contact the school button above for current contact details.";
   }
   return "";
-}async function generatePublicAssistantAnswer(messages, req, channel = "website") {
+}async function generatePublicAssistantAnswer(messages,req,channel="website"){
+  const leaseId=await acquireAssistantCapacity();
+  if(!leaseId)throw Object.assign(new Error("The assistant is helping several visitors right now. Please wait a few seconds and try again."),{status:503,retryAfter:5});
+  try{return await generatePublicAssistantAnswerUnlocked(messages,req,channel)}finally{await releaseAssistantCapacity(leaseId)}
+}
+async function generatePublicAssistantAnswerUnlocked(messages, req, channel = "website") {
   const apiKey = String(process.env.OPENAI_API_KEY || "").trim();
   if (!apiKey) throw Object.assign(new Error("The school information assistant is not enabled yet."), { status: 503 });
   if (!Array.isArray(messages) || !messages.length || messages.length > 6 || messages.some(message => !["user", "assistant"].includes(message?.role) || typeof message?.content !== "string" || message.content.length > 900)) throw Object.assign(new Error("Please send a short school information question."), { status: 400 });
@@ -1338,6 +1394,7 @@ function assistantPublicText(value, maxLength = 30000) {
   const question=[...messages].reverse().find(message=>message.role==="user")?.content||"";
   const state = await stateSnapshot(ASSISTANT_PUBLIC_KEYS);
   const publicPages = await loadAssistantPublicPages(question);
+  const curatedKnowledge = await loadAssistantKnowledge(question);
   const siteBase = String(process.env.PUBLIC_BASE_URL || "https://www.dipvtc.com").trim().replace(/\/+$/, "");
   const needsFees=/fee|tuition|cost|price|payment|paid|instal|installment|registration charge/i.test(question);
   const needsRegistration=/registration|register|enrol|enroll|admission|apply|application|rules|agreement/i.test(question);
@@ -1346,6 +1403,7 @@ function assistantPublicText(value, maxLength = 30000) {
     authoritativeContactInformation:{address:String(decodeStoredState(state.dipvtc_site_address,"")||"").trim(),email:String(decodeStoredState(state.dipvtc_site_email,"")||"").trim(),phones:String(decodeStoredState(state.dipvtc_site_phones,"")||"").trim(),whatsapp:String(decodeStoredState(state.dipvtc_site_whatsapp,"")||"").trim()},
     approvedDirectionsLink:String(decodeStoredState(state.dipvtc_site_address,"")||"").trim()?`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(String(decodeStoredState(state.dipvtc_site_address,"")).trim())}`:"",
     approvedWebsiteLinks:{registration:`${siteBase}/family-registration.html`,contact:`${siteBase}/contact.html`,courses:`${siteBase}/courses.html`,programs:`${siteBase}/programs.html`},
+    curatedKnowledge,
     relevantPublishedPages:publicPages
   };
   if(needsFees)context.publishedFeesAndPaymentRules={feeStructures:compactAssistantValue(state.dipvtc_fees,2400),schoolPriceRules:compactAssistantValue(state.dipvtc_school_price_rules,1800)};
@@ -1355,7 +1413,7 @@ function assistantPublicText(value, maxLength = 30000) {
   const channelInstructions = channel === "whatsapp"
     ? "You are replying inside WhatsApp, so there are no page buttons above. For school pages, use only the matching full HTTPS URLs in approvedWebsiteLinks; WhatsApp will make those links clickable. For directions, include only approvedDirectionsLink when present. The visitor is already contacting the school on WhatsApp; do not repeat or invent a support phone number."
     : "Do not write page filenames, raw website paths, or raw URLs for school pages. Refer to the named navigation buttons above. When giving directions, include the exact supplied approvedDirectionsLink as a standalone URL so the page can render it as a clickable link. For WhatsApp support, if authoritativeContactInformation.whatsapp is present, tell the visitor to click the WhatsApp support button above and do not print the raw number or URL; if it is absent, direct them to the Contact the school button above.";
-  const instructions = `You are the DIPVTC public website information assistant. Answer politely and briefly in plain text using only the relevant published school information supplied below. Do not guess missing facts; when information is missing, direct the visitor to school contact options. You are informational only: never approve or reject a learner, payment, staff member, or request; never promise account activation; never collect personal information; never request credentials, IDs, health information, or payment details. Do not claim to submit forms or change records. For registration, explain that the family must complete and submit the application themselves; never ask for application data in chat. For contact and directions use only authoritativeContactInformation and approvedDirectionsLink. For fees explain only published fee schedules/rules and state that the office confirms payments. For private student, parent, staff, or account data, explain you cannot access it. ${channelInstructions}\n\nPUBLIC SCHOOL INFORMATION (JSON):\n${assistantPublicText(context,8500)}`;
+  const instructions = `You are the DIPVTC public website information assistant. Answer politely and briefly in plain text using only the relevant published school information supplied below. Use curatedKnowledge as the central approved guidance source; use relevantPublishedPages and current published settings to add or update details. For current fees, dates, contacts and programmes, current published settings/pages take precedence. Do not search the whole website or infer beyond the supplied information. Do not guess missing facts; when information is missing, direct the visitor to school contact options. You are informational only: never approve or reject a learner, payment, staff member, or request; never promise account activation; never collect personal information; never request credentials, IDs, health information, or payment details. Do not claim to submit forms or change records. For registration, explain that the family must complete and submit the application themselves; never ask for application data in chat. For contact and directions use only authoritativeContactInformation and approvedDirectionsLink. For fees explain only published fee schedules/rules and state that the office confirms payments. For private student, parent, staff, or account data, explain you cannot access it. ${channelInstructions}\n\nPUBLIC SCHOOL INFORMATION (JSON):\n${assistantPublicText(context,8500)}`;
   const inputMessages=messages.slice(-4).map((message,index)=>({role:message.role,content:message.content.slice(index===messages.slice(-4).length-1?0:-420)}));
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
@@ -1373,7 +1431,7 @@ function assistantPublicText(value, maxLength = 30000) {
   const answer = (result.output || []).flatMap(item => item.type === "message" ? (item.content || []).filter(part => part.type === "output_text").map(part => part.text) : []).join("\n").trim();
   if (!answer) throw Object.assign(new Error("The information assistant could not prepare an answer. Please try again."), { status: 503 });
   return answer.slice(0, 4000);
-}app.post("/api/public/assistant", assistantLimiter, async (req, res) => {
+}app.post("/api/public/assistant",ensureAssistantVisitorSession,assistantNetworkLimiter,assistantLimiter,async(req,res)=>{
   try {
     const messages = Array.isArray(req.body?.messages) ? req.body.messages.slice(-4) : [];
     const answer = await generatePublicAssistantAnswer(messages, req, "website");
@@ -1382,6 +1440,7 @@ function assistantPublicText(value, maxLength = 30000) {
   } catch (error) {
     if (error.status === 400) return res.status(400).json({ error: error.message });
     if (error.status === 429) return res.status(429).json({ error: error.message });
+    if(error.retryAfter)res.setHeader("Retry-After",String(error.retryAfter));
     console.error("Public assistant request failed:", error.name || "Error");
     return res.status(503).json({ error: error.message || "The information assistant is temporarily unavailable. Please try again shortly or contact the school." });
   }
@@ -1680,6 +1739,7 @@ let server;
 async function start() {
   try {
     await pool.query("SELECT 1 FROM app_users LIMIT 0");
+    await ensureAssistantCapacityTables();
     await seedInitialAccounts();
     server = app.listen(port, host, () => {
       console.log(`DIPVTC server listening at http://${host}:${port}`);
