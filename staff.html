@@ -58,7 +58,7 @@ document.getElementById("topTitle").textContent=`${role.toUpperCase()} WORKSPACE
 const menu=[{id:"overview",label:"Overview"},{id:"tasks",label:"My tasks"}];
 if(hasRole("principal"))menu.push({id:"academic",label:"School results"});
 if(hasRole("teacher")&&!hasRole("principal"))menu.push({id:"academic",label:"Class Results"});
-if(hasRole("teacher"))menu.push({id:"exam-mark-entry",label:"Exam Mark-Entry",href:"/exam-mark-entry/"});
+if(hasRole("teacher")||hasRole("principal"))menu.push({id:"teacher-studio",label:"Teacher Studio",href:"/learning.html#teacher-studio"});if(hasRole("teacher"))menu.push({id:"exam-mark-entry",label:"Exam Mark-Entry",href:"/exam-mark-entry/"});
 if(hasRole("admissions")||hasRole("front_desk"))menu.push({id:"admissions",label:hasRole("front_desk")?"Admissions & Reception":"Admissions"});
 if(hasRole("finance"))menu.push({id:"finance",label:"Fees and payments"});
 if(hasRole("content"))menu.push({id:"site-content",label:"All Site Content",href:"/site-content.html"});

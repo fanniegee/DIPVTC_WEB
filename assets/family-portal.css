@@ -14,3 +14,5 @@
 
 .student-report-watermarked{position:relative;overflow:hidden}.student-report-watermark{position:absolute;inset:35% 0 auto;transform:rotate(-24deg);text-align:center;pointer-events:none;opacity:.14;color:#102b59;font-size:clamp(20px,5vw,44px);font-weight:900;letter-spacing:.08em;z-index:2}
 @media print{.student-view .student-report-watermarked{display:none!important}}
+
+.assignment-due-list{display:grid;gap:4px;margin-top:7px}.assignment-due-list .assignment-due{margin-top:0}
