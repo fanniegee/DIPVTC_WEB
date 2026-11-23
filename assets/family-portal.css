@@ -11,3 +11,6 @@
 .assignment-due{display:block;margin-top:7px;color:#075cce;font-size:10px;font-weight:800;line-height:1.5}
 
 .payment-alert-current{color:#176c3b;background:#effaf2;border-color:#38a76a;animation:none}
+
+.student-report-watermarked{position:relative;overflow:hidden}.student-report-watermark{position:absolute;inset:35% 0 auto;transform:rotate(-24deg);text-align:center;pointer-events:none;opacity:.14;color:#102b59;font-size:clamp(20px,5vw,44px);font-weight:900;letter-spacing:.08em;z-index:2}
+@media print{.student-view .student-report-watermarked{display:none!important}}
