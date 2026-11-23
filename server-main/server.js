@@ -527,7 +527,7 @@ app.put("/api/fees/tuition",requireRole("owner"),async(req,res,next)=>{
 
 app.get("/api/fees/learners",requireRole("owner","finance"),async(_req,res,next)=>{
   try{
-    const r=await pool.query("SELECT s.id,s.student_number,s.full_name,s.active,c.level,c.name AS class_name,p.school_code,p.intended_class FROM students s LEFT JOIN classes c ON c.id=s.class_id LEFT JOIN learner_profiles p ON p.student_id=s.id LEFT JOIN academic_year_control ayc ON ayc.singleton=TRUE LEFT JOIN student_enrollments en ON en.student_id=s.id AND en.academic_year=ayc.active_year AND en.status='enrolled' ORDER BY s.created_at DESC");
+    const r=await pool.query("SELECT s.id,s.student_number,s.full_name,s.active,c.level,c.name AS class_name,p.school_code,p.intended_class FROM students s LEFT JOIN classes c ON c.id=s.class_id LEFT JOIN learner_profiles p ON p.student_id=s.id ORDER BY s.created_at DESC");
     res.setHeader("Cache-Control","no-store");
     res.json({learners:r.rows});
   }catch(error){next(error);}
