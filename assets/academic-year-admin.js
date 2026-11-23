@@ -19,7 +19,8 @@
   section.innerHTML = `<div class="head"><div><div class="eyebrow">Annual school rollover</div><h2>Academic year</h2><p>Open the next year, preserve each learner’s class history, and review or reverse the latest rollover when needed.</p></div></div>
     <div class="card"><h3 id="academicYearHeading">Loading academic-year settings…</h3><p id="academicYearSchedule" class="muted"></p>
       <div id="academicYearCounts" class="grid3"></div><p id="academicYearNotice" class="section-note">Promotion follows each school’s configured grade sequence. Final classes stay in place for review; non-graded courses do not advance automatically.</p>
-      <div class="toplinks"><button id="rolloverAcademicYear" class="btn peach" type="button">Open next academic year now</button><button id="rollbackAcademicYear" class="btn light" type="button">Roll back latest year change</button><button id="refreshAcademicYear" class="btn light" type="button">Refresh</button></div>
+      <div class="toplinks"><button id="previewAcademicYear" class="btn light" type="button">Preview next-year placements</button><button id="rolloverAcademicYear" class="btn peach" type="button" disabled>Open next academic year</button><button id="rollbackAcademicYear" class="btn light" type="button">Roll back latest year change</button><button id="refreshAcademicYear" class="btn light" type="button">Refresh</button></div>
+      <div id="rolloverPreviewPanel" class="feed" hidden></div>
       <div id="academicYearMessage" class="status" role="status"></div>
     </div><div class="card"><h3>Individual learner class placement</h3><p class="muted">After a rollover, Owner/Admin can restore one learner to their saved previous-year class without rolling back other learners.</p><div id="academicYearLearners" class="feed"></div></div>
     <div class="card"><h3>Year-change history</h3><p class="muted">Rollover and rollback entries are retained in the audit history.</p><div id="academicYearHistory" class="feed"></div></div>`;
@@ -46,10 +47,34 @@
     const detail = document.createElement('p'); detail.textContent = `${item.reason || 'No reason recorded'} · ${item.changed_by_name || 'Automatic system action'} · ${new Date(item.created_at).toLocaleString()}`;
     text.append(title, detail); article.append(text); return article;
   }
+  let currentActiveYear = null;
+  let rolloverPreview = null;
+  function renderRolloverPreview(preview) {
+    const panel = $('rolloverPreviewPanel'); panel.replaceChildren(); panel.hidden = false;
+    const counts = preview.counts || {};
+    const summary = document.createElement('p'); summary.className = 'muted';
+    summary.textContent = `Preview: ${preview.fromYear} → ${preview.toYear}. ${counts.promoted || 0} promoted; ${counts.terminal || 0} final-level learners retained; ${counts.non-academic || 0} non-academic courses unchanged; ${counts["needs-review"] || 0} need staff review.`;
+    panel.append(summary);
+    const list = document.createElement('div'); list.style.cssText = 'max-height:520px;overflow:auto;border:1px solid #dbe4f0;border-radius:10px';
+    for (const learner of preview.learners || []) {
+      const row = document.createElement('article'); row.className = 'event';
+      const details = document.createElement('div');
+      const title = document.createElement('b'); title.textContent = `${learner.name} · ${learner.studentNumber || 'No student number'}`;
+      const placement = document.createElement('p'); placement.textContent = `${learner.school} · ${learner.currentClass} → ${learner.nextClass}`;
+      const status = document.createElement('p'); status.textContent = `${learner.action === 'needs-review' ? 'Needs review' : learner.action === 'non-academic' ? 'No automatic promotion' : learner.action === 'terminal' ? 'Final level retained' : 'Promote'}${learner.reason ? ' · ' + learner.reason : ''}`;
+      details.append(title, placement, status); row.append(details); list.append(row);
+    }
+    panel.append(list);
+    $('rolloverAcademicYear').disabled = !(preview.fingerprint && preview.fromYear === currentActiveYear && (preview.counts?.['needs-review'] || 0) === 0);
+  }
   async function load() {
+    rolloverPreview = null; currentActiveYear = null;
+    $('rolloverPreviewPanel').replaceChildren(); $('rolloverPreviewPanel').hidden = true;
+    $('rolloverAcademicYear').disabled = true;
     $('academicYearMessage').textContent = 'Loading academic-year settings…';
     try {
       const data = await request('/api/admin/academic-year');
+      currentActiveYear = data.activeYear;
       $('academicYearHeading').textContent = `Academic year ${data.activeYear} is active`;
       $('academicYearSchedule').textContent = `Automatic grade rollover: ${data.scheduledRollover}. Current enrollments: ${data.yearCounts.enrolled || 0}; completed/final class: ${data.yearCounts.completed || 0}; withdrawn: ${data.yearCounts.withdrawn || 0}.`;
       $('academicYearMessage').textContent = `Next year: ${data.nextYear}.`;
@@ -86,14 +111,30 @@
   }
   navButton.addEventListener('click', showPage);
   $('refreshAcademicYear').addEventListener('click', load);
+  $('previewAcademicYear').addEventListener('click', async () => {
+    $('previewAcademicYear').disabled = true; $('rolloverAcademicYear').disabled = true;
+    $('academicYearMessage').textContent = 'Reviewing proposed learner placements…';
+    try {
+      rolloverPreview = await request('/api/admin/academic-year/rollover-preview');
+      renderRolloverPreview(rolloverPreview);
+      const needsReview = rolloverPreview.counts?.['needs-review'] || 0;
+      $('academicYearMessage').textContent = needsReview ? `${needsReview} learner(s) need class or school corrections before rollover. The year-opening button remains disabled until the roster is corrected and previewed again.` : 'Review every proposed placement below. The year-opening button is enabled after the preview is clear.';
+    } catch (error) { $('academicYearMessage').textContent = error.message; }
+    finally { $('previewAcademicYear').disabled = false; }
+  });
   $('rolloverAcademicYear').addEventListener('click', async () => {
-    const reason = prompt('Why are you opening the next academic year? This will advance eligible learners and keep the previous year in history.');
+    if (!rolloverPreview || rolloverPreview.fromYear !== currentActiveYear || !rolloverPreview.fingerprint) {
+      $('academicYearMessage').textContent = 'Preview the next-year placements first.'; $('rolloverAcademicYear').disabled = true; return;
+    }
+    const reason = prompt('Why are you opening the next academic year? This reason will be kept in the permanent audit history.');
     if (reason === null) return;
-    if (!confirm('Open the next academic year now and advance eligible learners? You can roll back the whole transition from this page.')) return;
-    $('rolloverAcademicYear').disabled = true; $('academicYearMessage').textContent = 'Opening the new year and saving learner history…';
-    try { const result = await request('/api/admin/academic-year/rollover', { method: 'POST', body: JSON.stringify({ reason }) }); $('academicYearMessage').textContent = result.message; await load(); }
-    catch (error) { $('academicYearMessage').textContent = error.message; }
-    finally { $('rolloverAcademicYear').disabled = false; }
+    const summary = `Open academic year ${rolloverPreview.toYear}? ${rolloverPreview.counts.promoted || 0} learner(s) will advance and ${rolloverPreview.counts.terminal || 0} final-level learner(s) will remain in place. Please confirm you reviewed the full placement list.`;
+    if (!confirm(summary)) return;
+    $('rolloverAcademicYear').disabled = true; $('academicYearMessage').textContent = 'Opening the reviewed year and saving learner history…';
+    try {
+      const result = await request('/api/admin/academic-year/rollover', { method: 'POST', body: JSON.stringify({ reason, previewFingerprint: rolloverPreview.fingerprint }) });
+      rolloverPreview = null; $('academicYearMessage').textContent = result.message; await load();
+    } catch (error) { $('academicYearMessage').textContent = error.message; }
   });
   $('rollbackAcademicYear').addEventListener('click', async () => {
     const reason = prompt('Why must the latest academic-year transition be rolled back? New-year records will be kept.');

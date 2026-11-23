@@ -9,8 +9,27 @@ function normalizeClassName(value) {
   return String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase();
 }
 
+function classifyForRollover(learner, schools) {
+  const school = schools.find(item => item.code === String(learner.school_code || "").toLowerCase());
+  const currentName = String(learner.intended_class || String(learner.current_class || "").replace(/^.*?\s·\s/, "")).trim();
+  const classIndex = school?.classes.findIndex(item => normalizeClassName(item.name) === normalizeClassName(currentName)) ?? -1;
+  const currentClass = school?.classes[classIndex];
+  if (!school || !currentClass) return { action: "needs-review", currentClass: currentName || "No class recorded", nextClass: "Needs staff review", reason: "School or class is not in the configured promotion sequence." };
+  if (!currentClass.academicLevel) return { action: "non-academic", currentClass: currentName, nextClass: currentName, reason: "This course does not use automatic grade promotion." };
+  if (classIndex < school.classes.length - 1 && school.classes[classIndex + 1].academicLevel) {
+    return { action: "promoted", currentClass: currentName, nextClass: school.classes[classIndex + 1].name, reason: "" };
+  }
+  return { action: "terminal", currentClass: currentName, nextClass: currentName, reason: "Final configured academic level; learner stays for review." };
+}
+
+function rolloverFingerprint(rows, fromYear, toYear) {
+  const roster = rows.map(row => [row.id, row.class_id, row.school_code || "", row.intended_class || "", row.current_class || "", row.level || ""])
+    .sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+  return require("crypto").createHash("sha256").update(JSON.stringify([fromYear, toYear, roster])).digest("hex");
+}
+
 function installAcademicYearRoutes(app, { pool, requireRole, schools }) {
-  async function rollover(targetYear, actorId, reason, automatic = false) {
+  async function rollover(targetYear, actorId, reason, automatic = false, expectedFingerprint = null) {
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
@@ -27,6 +46,9 @@ function installAcademicYearRoutes(app, { pool, requireRole, schools }) {
         WHERE s.active=TRUE
         ORDER BY p.school_code,p.intended_class,s.full_name
         FOR UPDATE OF s`);
+      if (expectedFingerprint && rolloverFingerprint(roster.rows, fromYear, Number(targetYear)) !== expectedFingerprint) {
+        throw Object.assign(new Error("The learner roster changed after preview. Refresh and review the updated placements before opening the year."), { status: 409 });
+      }
       const event = await client.query(`
         INSERT INTO academic_year_events(action,from_year,to_year,reason,changed_by)
         VALUES('rollover',$1,$2,$3,$4) RETURNING id`,
@@ -123,13 +145,32 @@ function installAcademicYearRoutes(app, { pool, requireRole, schools }) {
     } catch (error) { next(error); }
   });
 
+  app.get("/api/admin/academic-year/rollover-preview", requireRole("owner", "admin"), async (_req, res, next) => {
+    try {
+      const control = await pool.query("SELECT active_year FROM academic_year_control WHERE singleton=TRUE");
+      if (!control.rowCount) return res.status(503).json({ error: "Apply the academic-year database setup before previewing rollover." });
+      const fromYear = Number(control.rows[0].active_year), toYear = fromYear + 1;
+      const roster = await pool.query("SELECT s.id,s.student_number,s.full_name,s.class_id,s.active,p.school_code,p.intended_class,c.name AS current_class,c.level FROM students s LEFT JOIN learner_profiles p ON p.student_id=s.id LEFT JOIN classes c ON c.id=s.class_id WHERE s.active=TRUE ORDER BY p.school_code,p.intended_class,s.full_name");
+      const learners = roster.rows.map(row => {
+        const plan = classifyForRollover(row, schools);
+        const school = schools.find(item => item.code === String(row.school_code || "").toLowerCase());
+        return { id: row.id, studentNumber: row.student_number, name: row.full_name, school: school?.name || row.school_code || "Unmatched school", ...plan };
+      });
+      const counts = learners.reduce((all, row) => { all[row.action] = (all[row.action] || 0) + 1; return all; }, {});
+      res.setHeader("Cache-Control", "no-store");
+      res.json({ fromYear, toYear, counts, learners, fingerprint: rolloverFingerprint(roster.rows, fromYear, toYear) });
+    } catch (error) { next(error); }
+  });
+
   app.post("/api/admin/academic-year/rollover", requireRole("owner", "admin"), async (req, res, next) => {
     const reason = String(req.body?.reason || "").trim().slice(0, 500);
+    const fingerprint = String(req.body?.previewFingerprint || "");
+    if (!/^[a-f0-9]{64}$/i.test(fingerprint)) return res.status(409).json({ error: "Preview the proposed class placements before opening the year." });
     if (reason.length < 8) return res.status(400).json({ error: "Add a reason of at least 8 characters for the permanent year-change audit." });
     try {
       const control = await pool.query("SELECT active_year FROM academic_year_control WHERE singleton=TRUE");
       if (!control.rowCount) return res.status(503).json({ error: "Apply database/020_academic_year_rollover.sql before opening a new year." });
-      const result = await rollover(Number(control.rows[0].active_year) + 1, req.user.id, reason);
+      const result = await rollover(Number(control.rows[0].active_year) + 1, req.user.id, reason, false, fingerprint);
       res.setHeader("Cache-Control", "no-store");
       res.json({ ok: true, ...result, message: `Academic year ${result.activeYear} is open. ${result.promoted} learners advanced; ${result.terminal} final-level learners were retained for review.` });
     } catch (error) { next(error); }
