@@ -473,7 +473,7 @@ app.post("/api/admissions/learners", requireRole("owner","admin","admissions"), 
 });
 
 app.get("/api/admissions/learners",requireRole("owner","admin","admissions"),async(_req,res,next)=>{
-  try{const r=await pool.query("SELECT s.id,s.student_number,s.full_name,s.active,c.level,c.name AS class_name,p.school_code,CASE WHEN en.student_id IS NULL THEN NULL ELSE p.intended_class END AS intended_class,p.boarding_status,p.date_of_birth,p.gender,p.address,p.guardian_name,p.guardian_email,p.guardian_phone,p.student_email,p.health_condition_status,p.health_conditions,p.health_condition_other,p.has_allergies,p.allergies,p.allergy_other,p.doctor_name,p.doctor_clinic,p.doctor_phone,p.doctor_email,p.doctor_address,p.health_notes FROM students s LEFT JOIN classes c ON c.id=s.class_id LEFT JOIN learner_profiles p ON p.student_id=s.id ORDER BY s.created_at DESC");res.setHeader("Cache-Control","no-store");res.json({learners:r.rows});}catch(e){next(e);}
+  try{const r=await pool.query("SELECT s.id,s.student_number,s.full_name,s.active,c.level,c.name AS class_name,p.school_code,CASE WHEN en.student_id IS NULL THEN NULL ELSE p.intended_class END AS intended_class,p.boarding_status,p.date_of_birth,p.gender,p.address,p.guardian_name,p.guardian_email,p.guardian_phone,p.student_email,p.health_condition_status,p.health_conditions,p.health_condition_other,p.has_allergies,p.allergies,p.allergy_other,p.doctor_name,p.doctor_clinic,p.doctor_phone,p.doctor_email,p.doctor_address,p.health_notes FROM students s LEFT JOIN classes c ON c.id=s.class_id LEFT JOIN learner_profiles p ON p.student_id=s.id LEFT JOIN academic_year_control ayc ON ayc.singleton=TRUE LEFT JOIN student_enrollments en ON en.student_id=s.id AND en.academic_year=ayc.active_year AND en.status='enrolled' ORDER BY s.created_at DESC");res.setHeader("Cache-Control","no-store");res.json({learners:r.rows});}catch(e){next(e);}
 });
 
 app.get("/api/fees/receipts",requireRole("owner","finance"),async(req,res,next)=>{try{const result=await pool.query("SELECT value FROM site_state WHERE state_key='di_payments'"),payments=decodeStoredState(result.rows[0]?.value,[]);let rows=payments;for(let depth=0;typeof rows==="string"&&depth<2;depth++){try{rows=JSON.parse(rows)}catch{rows=[]}}if(!Array.isArray(rows))rows=[];const studentId=String(req.query.studentId||"");res.setHeader("Cache-Control","no-store");res.json({receipts:studentId?rows.filter(item=>String(item.studentId)===studentId):rows});}catch(error){next(error)}});
@@ -527,7 +527,7 @@ app.put("/api/fees/tuition",requireRole("owner"),async(req,res,next)=>{
 
 app.get("/api/fees/learners",requireRole("owner","finance"),async(_req,res,next)=>{
   try{
-    const r=await pool.query("SELECT s.id,s.student_number,s.full_name,s.active,c.level,c.name AS class_name,p.school_code,p.intended_class FROM students s LEFT JOIN classes c ON c.id=s.class_id LEFT JOIN learner_profiles p ON p.student_id=s.id ORDER BY s.created_at DESC");
+    const r=await pool.query("SELECT s.id,s.student_number,s.full_name,s.active,c.level,c.name AS class_name,p.school_code,p.intended_class FROM students s LEFT JOIN classes c ON c.id=s.class_id LEFT JOIN learner_profiles p ON p.student_id=s.id LEFT JOIN academic_year_control ayc ON ayc.singleton=TRUE LEFT JOIN student_enrollments en ON en.student_id=s.id AND en.academic_year=ayc.active_year AND en.status='enrolled' ORDER BY s.created_at DESC");
     res.setHeader("Cache-Control","no-store");
     res.json({learners:r.rows});
   }catch(error){next(error);}
