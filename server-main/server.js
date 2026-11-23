@@ -9,6 +9,7 @@ const path = require("node:path");
 const fs = require("node:fs/promises");
 const { Pool } = require("pg");
 const mailer = require("./mailer");
+const installAcademicYearRoutes = require("./academic-years");
 const markingCalculations = require(path.resolve(__dirname, "../assets/DIPvtC-MARK-ENGINE-v4.1.0-local-test-ready/shared/calculations.js"));
 
 const scrypt = promisify(crypto.scrypt);
@@ -200,7 +201,7 @@ function parseHealthInformation(body) {
     healthNotes: needsDoctor ? String(body.healthNotes || body.health_notes || "").trim().slice(0,2000) : ""
   }};
 }
-async function nextStudentNumber(client, schoolYear = new Date().getFullYear()) {
+async function nextStudentNumber(client, schoolYear = Number(new Intl.DateTimeFormat("en-ZA", { timeZone: "Africa/Johannesburg", year: "numeric" }).format(new Date()))) {
   // Reconcile the counter with both enrolled learners and pending applications.
   // This also repairs counters made stale by records imported after the migration.
   const existing = await client.query(
@@ -1780,6 +1781,8 @@ async function seedInitialAccounts() {
   }
 }
 
+const academicYear = installAcademicYearRoutes(app, { pool, requireRole, schools: ADMISSION_SCHOOLS });
+
 let server;
 async function start() {
   try {
@@ -1789,6 +1792,8 @@ async function start() {
     server = app.listen(port, host, () => {
       console.log(`DIPVTC server listening at http://${host}:${port}`);
       console.log("Run npm run build:site after changing the website source files.");
+      academicYear.rollForwardIfDue().catch(error => console.warn("Academic-year rollover check failed:", error.message));
+      const academicYearTimer = setInterval(() => academicYear.rollForwardIfDue().catch(error => console.warn("Academic-year rollover check failed:", error.message)), 60_000); academicYearTimer.unref();
       refreshUsdZarMarketRate().catch(error=>console.warn(error.message));
       const usdZarTimer=setInterval(()=>refreshUsdZarMarketRate(true).catch(error=>console.warn(error.message)),USD_ZAR_REFRESH_MS);usdZarTimer.unref();
     });
