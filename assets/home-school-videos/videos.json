@@ -1,0 +1,16 @@
+{
+  "videos": [
+    {
+      "title": "Children studying in a classroom",
+      "credit": "Pavel Danilyuk - Pexels",
+      "sourceUrl": "https://www.pexels.com/video/children-studying-in-the-classroom-8342353/",
+      "src": "https://videos.pexels.com/video-files/8342353/8342353-uhd_3840_2160_25fps.mp4"
+    },
+    {
+      "title": "Teacher and students learning together",
+      "credit": "Tima Miroshnichenko - Pexels",
+      "sourceUrl": "https://www.pexels.com/video/teacher-and-students-in-class-5427884/",
+      "src": "https://videos.pexels.com/video-files/5427884/5427884-uhd_3840_2160_25fps.mp4"
+    }
+  ]
+}

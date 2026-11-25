@@ -43,6 +43,21 @@ a[href*="netlify.com"]{display:none !important}
 #welcome[data-slide-active="true"]{background-position:center;background-size:contain;background-repeat:no-repeat;color:#fff}
 #welcome[data-slide-active="true"]:before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(8,24,48,.78),rgba(8,24,48,.42));z-index:-1}
 #welcome[data-slide-active="true"] #welcomeText{color:#fff!important}
+.home-showcase{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(300px,.9fr);gap:16px;padding:20px;background:#fff;align-items:stretch}
+.home-showcase #welcome{min-height:560px;margin:0;padding:76px clamp(24px,4vw,70px);border-radius:14px}
+.home-video-card{position:relative;isolation:isolate;box-sizing:border-box;min-height:560px;overflow:hidden;border-radius:14px;padding:28px;display:flex;align-items:flex-end;color:#fff;background:#0a1931 url("/assets/home-welcome-slides/IMG-20260327-WA0026.jpg") center/cover no-repeat}
+.home-video-card:before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,#07162a20 20%,#07162ae8 100%)}
+.home-video-card video{position:absolute;inset:0;z-index:-2;width:100%;height:100%;object-fit:cover}
+.home-video-copy{max-width:520px;text-shadow:0 2px 8px #0008}
+.home-video-eyebrow{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border-radius:999px;background:#08172bb3;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.home-video-eyebrow:before{content:"";width:7px;height:7px;border-radius:50%;background:#ff9b72;box-shadow:0 0 10px #ff9b72}
+.home-video-copy h2{font-size:clamp(24px,3vw,38px);line-height:1.15;margin:12px 0 7px}
+.home-video-copy p{margin:0;color:#eef3fa;font-size:13px;line-height:1.6}
+.home-video-controls{display:flex;align-items:center;gap:12px;margin-top:16px}
+.home-video-toggle{border:1px solid #ffffff9c;border-radius:999px;background:#fff;color:#0a1931;padding:8px 13px;font:700 11px Montserrat,Arial,sans-serif;cursor:pointer}
+.home-video-credit{font-size:10px;color:#e7edf5}
+@media(max-width:800px){.home-showcase{grid-template-columns:1fr}.home-showcase #welcome{min-height:440px;padding:50px 20px}.home-video-card{min-height:360px}}
+@media(max-width:520px){.home-video-card{min-height:300px;padding:20px}.home-showcase{padding:14px;gap:12px}}
 .pathways-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:14px}
 .pathway-slide-card{position:relative;isolation:isolate;box-sizing:border-box;display:block;overflow:hidden;min-height:280px;padding:22px!important;background-position:center;background-size:contain;background-repeat:no-repeat;background-color:#eef2f6;color:#0a1931;text-decoration:none;cursor:pointer;transition:background-image .5s ease}
 .pathway-slide-card[data-slide-active="true"]{color:#fff;text-shadow:0 1px 3px #0008}
@@ -95,6 +110,7 @@ a[href*="netlify.com"]{display:none !important}
 </div>
 </div>
 
+<section class="home-showcase" aria-label="School in pictures and videos">
 <div class="welcome-sec" id="welcome" data-slideshow-manifest="/assets/home-welcome-slides/slides.json">
 <h2 id="welcomeTitle">Welcome to Double Impact Private College</h2>
 <p id="welcomeText" style="font-size:13px;color:#4b5563;line-height:1.7;margin-top:10px">Welcome to DIPVTC - The Empire of Excellence. We nurture talent from ECD to A-Level, HEXCO and Forex trading. Your success is our priority, in this family we don't fail.</p>
@@ -102,6 +118,13 @@ a[href*="netlify.com"]{display:none !important}
 <a href="about.html" style="background:#0a1931;color:#fff;padding:10px 18px;border-radius:20px;font-size:12px;font-weight:bold;display:inline-block">Read More About Us </a>
 <a href="programs.html" style="background:#e67e22;color:#fff;padding:10px 18px;border-radius:20px;font-size:12px;font-weight:bold;display:inline-block;margin-left:8px">View All 6 Schools </a>
 </div>
+<div class="home-video-card" id="homeVideoCard">
+<video id="homeSchoolVideo" muted playsinline autoplay preload="metadata" poster="/assets/home-welcome-slides/IMG-20260327-WA0026.jpg" aria-label="School life video"></video>
+<div class="home-video-copy"><span class="home-video-eyebrow">School videos</span><h2>Learning in action</h2><p>A glimpse of classroom life and students learning together.</p><div class="home-video-controls"><button class="home-video-toggle" id="homeVideoToggle" type="button" aria-pressed="false">Pause video</button><span class="home-video-credit" id="homeVideoCredit">Illustration video</span></div></div>
+</div>
+</section>
+
+
 
 <div style="padding:20px;background:#fff;display:grid;grid-template-columns:repeat(4,1fr);gap:12px" id="courses">
 <div style="grid-column:1/-1;text-align:center"><h3 id="coursesTitle" style="color:#0a1931;margin:0 0 10px 0">Our Popular Courses</h3>
@@ -206,6 +229,24 @@ async function startCardSlideshow(card,manifestUrl){
  }catch(error){console.info('Slideshow is not configured yet:',manifestUrl)}
 }
 document.querySelectorAll('[data-slideshow-manifest]').forEach(card=>startCardSlideshow(card,card.dataset.slideshowManifest));
+async function startHomeSchoolVideos(){
+ const card=document.getElementById("homeVideoCard"),video=document.getElementById("homeSchoolVideo"),button=document.getElementById("homeVideoToggle"),credit=document.getElementById("homeVideoCredit");
+ if(!card||!video||!button||!credit)return;
+ try{
+  const response=await fetch("/assets/home-school-videos/videos.json",{cache:"no-store"});if(!response.ok)throw Error("Video list unavailable");
+  const config=await response.json(),videos=Array.isArray(config.videos)?config.videos.filter(item=>item&&typeof item.src==="string"&&/^https:\/\/videos\.pexels\.com\//i.test(item.src)):[];
+  if(!videos.length)return;
+  let index=0,errors=0,visible=true;const reducedMotion=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const play=()=>{if(!visible||reducedMotion)return;video.play().then(()=>{button.textContent="Pause video";button.setAttribute("aria-pressed","false")}).catch(()=>{button.textContent="Play video";button.setAttribute("aria-pressed","true")})};
+  const load=()=>{const item=videos[index];video.src=item.src;credit.textContent="Video: "+(item.credit||"Pexels contributor");credit.title=item.title||"School learning video";video.load();play()};
+  video.addEventListener("ended",()=>{index=(index+1)%videos.length;errors=0;load()});
+  video.addEventListener("error",()=>{if(++errors<videos.length){index=(index+1)%videos.length;load()}else{button.textContent="Videos unavailable";button.disabled=true;card.dataset.videoError="true"}});
+  button.addEventListener("click",()=>{if(video.paused){if(reducedMotion)video.play().then(()=>{button.textContent="Pause video";button.setAttribute("aria-pressed","false")});else play()}else{video.pause();button.textContent="Play video";button.setAttribute("aria-pressed","true")}});
+  if("IntersectionObserver"in window)new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;if(visible)play();else video.pause()},{threshold:.2}).observe(card);
+  if(reducedMotion){button.textContent="Play video";button.setAttribute("aria-pressed","true")}load();
+ }catch(error){card.dataset.videoError="true";console.info("School video showcase is not configured:",error)}
+}
+startHomeSchoolVideos();
 function openEnquiry(){document.getElementById('enqModal').classList.add('active')}
 function closeEnquiry(){document.getElementById('enqModal').classList.remove('active')}
 async function submitEnquiry(){
