@@ -50,15 +50,6 @@ function normalizeCourse(value,index){const item=typeof value==='string'?{name:v
 const managed=parseCourseList('dipvtc_subjects_image_boxes');
 const legacy=parseCourseList('dipvtc_courses');
 const allCourses=(managed.length?managed:legacy).map(normalizeCourse);
-const deityProFxCourses=[
-{name:"Fundamental Trading",school:"DeityPro FX",image:"/assets/images/fx-fundamental.png"},
-{name:"Technical Trading",school:"DeityPro FX",image:"/assets/images/fx-technical.png"},
-{name:"Price Action",school:"DeityPro FX",image:"/assets/images/fx-priceaction.png"},
-{name:"Sentiments | Market Psychology",school:"DeityPro FX",image:"/assets/images/fx-sentiment.png"},
-{name:"Risk Management | Prop Firm Mastery",school:"DeityPro FX",image:"/assets/images/fx-risk.png"},
-{name:"Algorithmic | Automated Trading",school:"DeityPro FX",image:"/assets/images/fx-algo.png"}
-].map((item,index)=>normalizeCourse(item,allCourses.length+index));
-for(const course of deityProFxCourses){if(!allCourses.some(existing=>existing.school.toLowerCase()===course.school.toLowerCase()&&existing.name.toLowerCase()===course.name.toLowerCase()))allCourses.push(course);}
 let visibleCourses=[];
 const grid=document.getElementById('courseGrid');
 const search=document.getElementById('courseSearch');
