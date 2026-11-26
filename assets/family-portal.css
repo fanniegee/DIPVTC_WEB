@@ -16,3 +16,5 @@
 @media print{.student-view .student-report-watermarked{display:none!important}}
 
 .assignment-due-list{display:grid;gap:4px;margin-top:7px}.assignment-due-list .assignment-due{margin-top:0}
+
+.report-mark-low td{color:#b4232e!important;background:#fff0f0}.report-mark-pass td{color:#1d4ed8!important}
